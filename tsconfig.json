@@ -1,6 +1,6 @@
 {
     // esbuild follows the src/userplugins symlink to this repo and looks for a tsconfig here, so the
-    // host's @api/@webpack/... aliases must be re-supplied. They point at the combined vencord/ tree, the one
-    // that gets installed; see README "Building".
-    "extends": "../vencord/tsconfig.json"
+    // host's @api/@webpack/... aliases must be re-supplied. `.host` is a gitignored symlink to the Vencord
+    // tree doing the build (an absolute link, so it also resolves when reached through the symlink); see README.
+    "extends": "./.host/tsconfig.json"
 }
