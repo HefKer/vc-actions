@@ -6,7 +6,6 @@
 
 import type { Action } from "../registry";
 import popout from "./popout";
-import retarget from "./retarget";
 import stopStream from "./stopStream";
 import stream from "./stream";
 
@@ -14,6 +13,5 @@ import stream from "./stream";
 export const actions: Action[] = [
     stream,
     stopStream,
-    retarget,
     popout,
 ];

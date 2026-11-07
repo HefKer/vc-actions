@@ -11,7 +11,6 @@ export interface VcPresetsApi {
     listPresets(): { name: string; }[];
     startPreset(name: string): Promise<void>;
     stopStream(): void;
-    retarget(name: string): Promise<void>;
 }
 
 export class PresetsMissing extends Error { }
