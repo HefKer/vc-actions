@@ -9,10 +9,9 @@ Each action is one file in `actions/`; the same action runs from a slash command
 |---|---|---|
 | `stream` | `/stream <preset>` | Start streaming with a VcPresets preset (choices list the saved presets) |
 | `stopstream` | `/stopstream` | Stop your stream |
-| `retarget` | `/retarget <preset>` | Switch the running stream to another preset |
-| `popout` | `/popout [user]` | Pop out a stream you're watching: the focused one, or that user's (it starts watching if needed) |
+| `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
 
-`stream`, `stopstream` and `retarget` call the sibling plugin VcPresets (`../vc-presets`) at run time through
+`stream` and `stopstream` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
 Preset names match exactly, then case-insensitively, then by unique prefix.
 
@@ -56,11 +55,15 @@ Arg `type: "user"` gives a user picker; `choices: () => string[]` offers values 
 
 ## How pop-out works
 
-Discord's call tiles have a "Pop Out" button that runs the action creator dispatching
-`CALL_TILE_POPOUT_WINDOW_OPEN` (found with `findByCode`; if it moves, the plugin dispatches that Flux action
-itself). Discord's PopoutWindowManager then `window.open`s `/popout` with the frame name
-`DISCORD_CALL_TILE_POPOUT_<channel>_<streamKey>`, which Vesktop allows as a Discord pop-out and niri floats.
-Watching a stream that isn't watched yet uses Discord's own `watchStream` (the `STREAM_WATCH` creator).
+Both go through Discord's own action creators, found with `findByCode` (if one moves, the plugin dispatches its
+Flux action itself). Discord's PopoutWindowManager answers by `window.open`ing `/popout` with a `DISCORD_*`
+frame name, which Vesktop allows as a Discord pop-out and niri floats.
+
+- No user: `openChannelCallPopout(channel)` → `CHANNEL_CALL_POPOUT_WINDOW_OPEN`, what the Pop Out button at the
+  bottom right of the call view runs. Window `DISCORD_CHANNEL_CALL_POPOUT`, the whole call grid.
+- User: `openCallTilePopout(channelId, streamKey)` → `CALL_TILE_POPOUT_WINDOW_OPEN`, a tile's own pop-out.
+  Window `DISCORD_CALL_TILE_POPOUT_<channel>_<streamKey>`. Watching a stream that isn't watched yet uses
+  Discord's `watchStream` (the `STREAM_WATCH` creator). Auto pop-out uses this path too.
 
 ## Install
 
@@ -71,14 +74,20 @@ restart Vesktop, enable **VcActions** (and VcPresets).
 ## Building
 
 esbuild follows the `src/userplugins/vcActions` symlink to this repo and reads `tsconfig.json` here, which
-extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases. So a build in another host such as
-`../.vencord-vc-actions` compiles (good for `pnpm build` / `pnpm test` checks) but bundles a second copy of
-Vencord's modules from `../vencord`: don't install that dist.
+extends `./.host/tsconfig.json` to get the `@api`/`@webpack` aliases. `.host` is a gitignored symlink to the
+Vencord tree that builds this, absolute so it also resolves through the userplugins symlink:
+
+```
+ln -s ~/dev/vesktop-mods/vencord .host
+```
+
+Point it at the tree you build in; building in another tree bundles a second copy of Vencord's modules from
+`.host`'s, which compiles but mustn't be installed.
 
 ## Limits
 
-- Pop-out needs you in the stream's voice channel; Discord won't watch a stream from outside it.
-- The slash-command preset choices rely on Discord re-reading a built-in command's `choices`; if they show
+- Pop-out needs you in a voice channel; a user's stream must be in yours, Discord won't watch it from outside.
+- The `/stream` preset choices rely on Discord re-reading a built-in command's `choices`; if they show
   stale or none, type the name: it's still matched.
 - Auto pop-out reacts to every `STREAM_WATCH` of a friend's stream, including Discord re-watching after a
   reconnect; it skips streams already popped out.
