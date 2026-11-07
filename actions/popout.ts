@@ -6,20 +6,21 @@
 
 import { UserStore } from "@webpack/common";
 
-import { focusedStream, popOut, userStream } from "../lib/streams";
+import { popOut, popOutCall, userStream } from "../lib/streams";
 import { defineAction } from "../registry";
 
 export default defineAction({
     id: "popout",
     command: "popout",
-    description: "Pop out a stream you're watching (the focused one, or that user's) into its own window",
-    args: [{ name: "user", description: "Whose stream; default: the focused one", type: "user" }],
+    description: "Pop out the call view (like its Pop Out button), or with a user, just their stream",
+    args: [{ name: "user", description: "Pop out only this user's stream tile", type: "user" }],
     async run({ args, reply }) {
-        const user = args.user ? UserStore.getUser(args.user) : null;
-        const stream = args.user
-            ? await userStream(args.user, user?.globalName ?? user?.username ?? args.user)
-            : focusedStream();
-        popOut(stream);
+        if (!args.user) {
+            popOutCall();
+            return reply("Call popped out.", "success");
+        }
+        const user = UserStore.getUser(args.user);
+        popOut(await userStream(args.user, user?.globalName ?? user?.username ?? args.user));
         reply("Popped out.", "success");
     }
 });

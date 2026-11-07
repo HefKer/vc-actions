@@ -6,7 +6,7 @@
 
 import { Logger } from "@utils/Logger";
 import { findByCodeLazy } from "@webpack";
-import { ApplicationStreamingStore, ChannelRTCStore, FluxDispatcher, PopoutWindowStore, SelectedChannelStore, UserStore } from "@webpack/common";
+import { ApplicationStreamingStore, ChannelRTCStore, ChannelStore, FluxDispatcher, PopoutWindowStore, SelectedChannelStore } from "@webpack/common";
 
 const logger = new Logger("VcActions");
 
@@ -26,6 +26,9 @@ interface StreamRef {
  */
 const openCallTilePopout: (channelId: string, participantId: string) => void =
     findByCodeLazy('type:"CALL_TILE_POPOUT_WINDOW_OPEN"');
+/** openChannelCallPopout(channel): the "Pop Out" button at the bottom right of the call view; the whole call grid. */
+const openChannelCallPopout: (channel: object) => void =
+    findByCodeLazy('type:"CHANNEL_CALL_POPOUT_WINDOW_OPEN"');
 /** watchStream(stream, { noFocus, forceFocus, forceMultiple }): what clicking "Watch Stream" runs. */
 const watchStream: (stream: StreamRef, opts?: { noFocus?: boolean; forceMultiple?: boolean; }) => void =
     findByCodeLazy('type:"STREAM_WATCH",streamKey:');
@@ -69,30 +72,22 @@ export function popOut(s: StreamRef) {
     }
 }
 
+/** Pop out the call view of your voice channel, like the call view's own Pop Out button. */
+export function popOutCall() {
+    const channel = ChannelStore.getChannel(myVoiceChannel());
+    if (!channel) throw new StreamError("Can't find your voice channel.");
+    try {
+        openChannelCallPopout(channel);
+    } catch (e) {
+        logger.warn("openChannelCallPopout not found, dispatching CHANNEL_CALL_POPOUT_WINDOW_OPEN directly", e);
+        FluxDispatcher.dispatch({ type: "CHANNEL_CALL_POPOUT_WINDOW_OPEN", channel });
+    }
+}
+
 function myVoiceChannel(): string {
     const id = SelectedChannelStore.getVoiceChannelId();
     if (!id) throw new StreamError("You're not in a voice channel.");
     return id;
-}
-
-const watched = (channelId: string): StreamRef[] => {
-    const me = UserStore.getCurrentUser()?.id;
-    return ApplicationStreamingStore.getAllActiveStreams()
-        .filter(s => s.channelId === channelId && s.ownerId !== me) as StreamRef[];
-};
-
-/** The stream to pop out when no user is named: the focused tile, else the only/latest watched stream. */
-export function focusedStream(): StreamRef {
-    const vc = myVoiceChannel();
-    const me = UserStore.getCurrentUser()?.id;
-    const selected = ChannelRTCStore.getSelectedParticipantId(vc);
-    const fromSelected = selected ? decodeStreamKey(selected) : null;
-    if (fromSelected && fromSelected.ownerId !== me) return fromSelected;
-
-    const list = watched(vc);
-    if (!list.length) throw new StreamError("You're not watching a stream: watch one, or name a user.");
-    const last = ApplicationStreamingStore.getLastActiveStream() as StreamRef | null;
-    return (last && list.find(s => encodeStreamKey(s) === encodeStreamKey(last))) ?? list[0];
 }
 
 const waitFor = (check: () => boolean, ms: number) => new Promise<boolean>(resolve => {
