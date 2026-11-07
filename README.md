@@ -9,9 +9,10 @@ Each action is one file in `actions/`; the same action runs from a slash command
 |---|---|---|
 | `stream` | `/stream <preset>` | Start streaming with a VcPresets preset (choices list the saved presets) |
 | `stopstream` | `/stopstream` | Stop your stream |
+| `retarget` | `/retarget <preset>` | Mid-stream, move the niri Dynamic Cast Target to that preset's target (VcPresets errors if you're not streaming or the preset has no video) |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
 
-`stream` and `stopstream` call the sibling plugin VcPresets (`../vc-presets`) at run time through
+`stream`, `stopstream` and `retarget` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
 Preset names match exactly, then case-insensitively, then by unique prefix.
 
@@ -25,6 +26,7 @@ Plugin settings → **Hotkeys**, one binding per line, `#` starts a comment:
 ctrl+alt+p = popout
 ctrl+alt+1 = stream Gaming
 ctrl+alt+0 = stopstream
+ctrl+alt+2 = retarget Browser
 ```
 
 Words after the action id fill its args in order; the last arg takes the rest of the line, so preset names can
@@ -82,7 +84,7 @@ tree compiles but bundles a second copy of Vencord's modules from `vencord/`: do
 ## Limits
 
 - Pop-out needs you in a voice channel; a user's stream must be in yours, Discord won't watch it from outside.
-- The `/stream` preset choices rely on Discord re-reading a built-in command's `choices`; if they show
+- The `/stream` and `/retarget` preset choices rely on Discord re-reading a built-in command's `choices`; if they show
   stale or none, type the name: it's still matched.
 - Auto pop-out reacts to every `STREAM_WATCH` of a friend's stream, including Discord re-watching after a
   reconnect; it skips streams already popped out.

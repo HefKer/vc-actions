@@ -10,12 +10,12 @@ optional default hotkey. Adding an action = adding a file plus one import line.
   pop-out windows (`window.open` with a `DISCORD_*` frame name to `/popout`); niri already floats them on DP-1.
 - Sibling plugin **VcPresets** (`../vc-presets`, being written in parallel) exposes at runtime via
   `Vencord.Plugins.plugins.VcPresets`: `listPresets(): {name: string}[]`, `startPreset(name): Promise<void>`,
-  `stopStream(): void`. Don't import it; look it up at call time and show a
+  `stopStream(): void`, `retarget(name): Promise<void>` (moves only niri's Dynamic Cast Target mid-stream;
+  throws a readable Error when not streaming or the preset has no video). Don't import it; look it up at call time and show a
   clear toast/message if it's missing or disabled.
 
 ## Wanted (first actions)
-1. `/stream <preset>` (autocomplete from `listPresets`), `/stopstream`. (`/retarget` was dropped: casting moved to
-   xdg-desktop-portal-wlr, monitors only.)
+1. `/stream <preset>` and `/retarget <preset>` (choices from `listPresets`), `/stopstream`.
 2. `/popout [user]`, through Discord's own pop-out code paths found in its webpack (`findByCode`): no user opens the
    call pop-out (the call view's Pop Out button, whole grid); a user pops out that user's stream tile.
 3. Optional setting: auto-pop-out when you start watching a friend's stream.
