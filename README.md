@@ -74,15 +74,10 @@ restart Vesktop, enable **VcActions** (and VcPresets).
 ## Building
 
 esbuild follows the `src/userplugins/vcActions` symlink to this repo and reads `tsconfig.json` here, which
-extends `./.host/tsconfig.json` to get the `@api`/`@webpack` aliases. `.host` is a gitignored symlink to the
-Vencord tree that builds this, absolute so it also resolves through the userplugins symlink:
-
-```
-ln -s ~/dev/vesktop-mods/vencord .host
-```
-
-Point it at the tree you build in; building in another tree bundles a second copy of Vencord's modules from
-`.host`'s, which compiles but mustn't be installed.
+extends `/home/hefker/dev/vesktop-mods/vencord/tsconfig.json` to get the `@api`/`@webpack` aliases. The path is
+absolute because eslint reads the tsconfig through the symlink, where a relative `../vencord` doesn't resolve,
+and a symlink to the host inside this repo makes stylelint's `src/**` glob loop. Building in another Vencord
+tree compiles but bundles a second copy of Vencord's modules from `vencord/`: don't install that dist.
 
 ## Limits
 
