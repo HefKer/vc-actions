@@ -11,6 +11,8 @@ export interface VcPresetsApi {
     listPresets(): { name: string; }[];
     startPreset(name: string): Promise<void>;
     stopStream(): void;
+    /** Changes only the niri cast target, mid-stream; throws a readable Error when not streaming or no video. */
+    retarget(name: string): Promise<void>;
 }
 
 export class PresetsMissing extends Error { }
