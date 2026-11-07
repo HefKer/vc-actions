@@ -27,5 +27,5 @@ optional default hotkey. Adding an action = adding a file plus one import line.
   `pnpm build` and `pnpm test` there. Path aliases resolve through `tsconfig.json` extending that tree's tsconfig by
   absolute path (no symlink in this repo: stylelint's glob loops on it); fix alias trouble from this repo, never by editing Vencord.
   Don't edit `../vc-presets`; a build failure in its files is its agent's.
-- Don't touch the running Vesktop, its settings, or `~/.config/vesktop`. Don't push, don't add remotes. The user live-tests.
+- Don't touch the running Vesktop, its settings, or `~/.config/vesktop`. Public repo (GitHub HefKer/vc-actions): push only when the user asks. The user live-tests.
 - Small commits to `main` here. README.md: action list, how to add an action, install, limits.

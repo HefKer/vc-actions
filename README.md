@@ -69,17 +69,19 @@ frame name, which Vesktop allows as a Discord pop-out and niri floats.
 
 ## Install
 
-The installed build is the combined tree `../vencord` (both plugins symlinked into `src/userplugins/`):
-`pnpm build` there, then Vesktop Settings → Vesktop → Vencord Location → `~/dev/vesktop-mods/vencord/dist`,
-restart Vesktop, enable **VcActions** (and VcPresets).
+**Nix:** copy this repo into Vencord's `src/userplugins/vcActions` and build Vencord; see
+[HefKer/nixos-config's `pkgs/vencord-userplugins`](https://github.com/HefKer/nixos-config/tree/main/pkgs/vencord-userplugins).
+
+**By hand:** clone Vencord next to this repo as `../vencord`, symlink this repo to `../vencord/src/userplugins/vcActions`,
+`pnpm build` there, then Vesktop Settings → Vesktop → Vencord Location → that tree's `dist`, restart Vesktop, and
+enable **VcActions** (and [VcPresets](https://github.com/HefKer/vc-presets)).
 
 ## Building
 
 esbuild follows the `src/userplugins/vcActions` symlink to this repo and reads `tsconfig.json` here, which
-extends `/home/hefker/dev/vesktop-mods/vencord/tsconfig.json` to get the `@api`/`@webpack` aliases. The path is
-absolute because eslint reads the tsconfig through the symlink, where a relative `../vencord` doesn't resolve,
-and a symlink to the host inside this repo makes stylelint's `src/**` glob loop. Building in another Vencord
-tree compiles but bundles a second copy of Vencord's modules from `vencord/`: don't install that dist.
+extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the Vencord tree must sit next to
+this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
+Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
 ## Limits
 

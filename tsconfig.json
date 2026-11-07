@@ -1,7 +1,8 @@
 {
-    // esbuild follows the src/userplugins symlink to this repo and looks for a tsconfig here, so the
-    // host's @api/@webpack/... aliases must be re-supplied. Absolute, because eslint reads this through the
-    // symlink (where ../vencord doesn't resolve), and a symlink to the host inside this repo makes
-    // stylelint's src/** glob loop. See README "Building".
-    "extends": "/home/hefker/dev/vesktop-mods/vencord/tsconfig.json"
+    // esbuild and tsc resolve files reached through the host's src/userplugins symlink by their real
+    // path, so Vencord's path aliases (@api/*, @utils/*, ...) must come from here. Extend the combined
+    // build tree directly: a symlink to it inside this repo would loop (vencord/src/userplugins/vcPresets
+    // -> here -> vencord) and send stylelint's glob into endless recursion. To build in another Vencord
+    // tree, change this path.
+    "extends": "../vencord/tsconfig.json"
 }
