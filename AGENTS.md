@@ -13,7 +13,6 @@ README.md is the source of truth for the actions, adding one, pop-out internals,
 - Build host: the combined tree `../vencord` (both plugins symlinked into `src/userplugins/`). Verify with
   `pnpm build` and `pnpm test` there. Fix alias trouble from this repo (see `tsconfig.json`), never by editing Vencord.
   `../vc-presets` is its own repo: leave it and build failures in its files alone.
-- Hands off the running Vesktop, its settings, and `~/.config/vesktop`. The user live-tests.
 - Public repo (GitHub HefKer/vc-actions): small commits to `main`; push only when the user asks.
 
 ## Agent skills
