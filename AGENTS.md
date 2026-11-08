@@ -15,3 +15,17 @@ README.md is the source of truth for the actions, adding one, pop-out internals,
   `../vc-presets` is its own repo: leave it and build failures in its files alone.
 - Hands off the running Vesktop, its settings, and `~/.config/vesktop`. The user live-tests.
 - Public repo (GitHub HefKer/vc-actions): small commits to `main`; push only when the user asks.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on HefKer/vc-actions via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
