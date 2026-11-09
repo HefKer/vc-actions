@@ -33,7 +33,10 @@ const settings = definePluginSettings({
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         // No bindings by default (AGENTS.md).
         default: "",
-        onChange: () => reloadBindings(ANNOUNCE_DELAY)
+        // Settings can change while the plugin is stopped; then there's nothing to reload.
+        onChange: () => {
+            if (running) reloadBindings(ANNOUNCE_DELAY);
+        }
     },
     autoPopout: {
         type: OptionType.BOOLEAN,
@@ -108,6 +111,7 @@ const commands = actions.filter(a => a.command).map(a => ({
 
 const actionMeta = actions.map(a => ({ id: a.id, args: (a.args ?? []).map(arg => arg.name), holdable: a.holdable }));
 let engine: BindingEngine | null = null;
+let running = false;
 let detachWindows: (() => void) | undefined;
 
 /** Typing in the setting reloads on every keystroke; problems wait this long after the last one. */
@@ -258,12 +262,14 @@ export default definePlugin({
     },
 
     start() {
+        running = true;
         reloadBindings();
         startVoiceTracking();
         detachWindows = attachToWindows({ keydown: onKey, keyup: onKey, blur: onBlur });
     },
 
     stop() {
+        running = false;
         detachWindows?.();
         detachWindows = undefined;
         hideHint = undefined;
