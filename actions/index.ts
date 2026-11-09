@@ -40,6 +40,7 @@ import vcjoin from "./vcjoin";
 import vcleave from "./vcleave";
 import volume from "./volume";
 import watch from "./watch";
+import messagemode from "./messagemode";
 
 /** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
@@ -78,4 +79,5 @@ export const actions: Action[] = [
     notifmute,
     notifs,
     inbox,
+    messagemode,
 ];
