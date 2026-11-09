@@ -46,8 +46,19 @@ export interface Step {
 export type Effect =
     /** Run these steps in order. */
     | { type: "run"; trigger: string; steps: Step[]; }
+    /** A sequence is under way: show the which-key hint (replacing any earlier one) until a run or cancel. */
+    | { type: "hint"; keys: string; next: HintEntry[]; }
+    /** The sequence under way ended without running anything: hide the hint. */
+    | { type: "cancel"; }
     /** Stop the event reaching Discord (preventDefault + stopPropagation). Absent means pass it through. */
     | { type: "swallow"; };
+
+/** One key that may come next in a sequence, as written in the bindings. */
+export interface HintEntry {
+    key: string;
+    /** What it runs, or `null` when more keys follow. */
+    steps: Step[] | null;
+}
 
 export interface Problem {
     severity: "error" | "warning";
@@ -71,7 +82,12 @@ interface Combo {
 }
 
 interface Binding {
-    combo: Combo;
+    /** 1-based line it was bound on. */
+    line: number;
+    /** One combo, or a sequence's combos in order. */
+    combos: Combo[];
+    /** The combos as written. */
+    keys: string[];
     trigger: string;
     steps: Step[];
 }
@@ -98,6 +114,9 @@ function parseCombo(text: string): Combo | null {
     }
     return combo.key ? combo : null;
 }
+
+/** `KeyboardEvent.key` of keys that only modify; pressing one on its own is never a combo. */
+const MODIFIER_KEYS = new Set(["Control", "Alt", "AltGraph", "Shift", "Meta", "OS", "Hyper", "Super"]);
 
 /** One string per distinct combo, whatever synonyms or case it was written with. */
 function comboId(c: Combo): string {
@@ -151,16 +170,27 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
     const problems: Problem[] = [];
     const error = (line: number, message: string) => problems.push({ severity: "error", line, message });
 
-    /** Line each trigger was first bound on, by canonical combo. */
-    const seen = new Map<string, number>();
-    /** Conflict checks for a parsed binding: returns an error (skip the line) or pushes warnings (still bound). */
-    function checkConflicts(combo: Combo, trigger: string, line: number): string | undefined {
-        const id = comboId(combo);
-        const first = seen.get(id);
-        if (first) return `"${trigger}" is already bound on line ${first}, which wins`;
-        seen.set(id, line);
-        const discord = discordById.get(id);
-        if (discord) problems.push({ severity: "warning", line, message: `"${trigger}" overrides Discord's shortcut for ${discord}` });
+    /** Leaders already warned about clashing with Discord, so many sequences on one leader warn once. */
+    const warned = new Set<string>();
+    /**
+     * Conflict checks for a parsed binding: returns an error (skip the line) or pushes warnings (still bound).
+     * A trigger that equals, starts or is started by an earlier one can't be told apart: the earlier line wins.
+     */
+    function checkConflicts(combos: Combo[], trigger: string, line: number): string | undefined {
+        const ids = combos.map(comboId);
+        for (const b of bindings) {
+            const n = Math.min(ids.length, b.combos.length);
+            if (!ids.slice(0, n).every((id, j) => comboId(b.combos[j]) === id)) continue;
+            if (ids.length === b.combos.length) return `"${trigger}" is already bound on line ${b.line}, which wins`;
+            return `"${trigger}" is ambiguous with "${b.trigger}" on line ${b.line}, which wins: a trigger can't also start a longer sequence`;
+        }
+        // Only the first combo reaches Discord: later keys of a sequence are ours while the hint is up.
+        const discord = discordById.get(ids[0]);
+        if (discord && !warned.has(ids[0])) {
+            warned.add(ids[0]);
+            const what = ids.length > 1 ? `"${trigger}" starts with ${trigger.split(/\s+/)[0]}, which` : `"${trigger}"`;
+            problems.push({ severity: "warning", line, message: `${what} overrides Discord's shortcut for ${discord}` });
+        }
     }
 
     text.split("\n").forEach((raw, i) => {
@@ -169,27 +199,65 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         const eq = line.indexOf("=");
         if (eq < 0) return error(i + 1, `expected "trigger = action", got "${line}"`);
         const trigger = line.slice(0, eq).trim();
-        const combo = parseCombo(trigger);
-        if (!combo) return error(i + 1, `can't read trigger "${trigger}"`);
+        const keys = trigger.split(/\s+/);
+        const parsed = keys.map(parseCombo);
+        if (!parsed.every(c => c)) return error(i + 1, `can't read trigger "${trigger}"`);
+        const combos = parsed as Combo[];
+        const [leader] = combos;
+        if (keys.length > 1 && !leader.ctrl && !leader.alt && !leader.meta)
+            return error(i + 1, `sequence "${trigger}" must start with ctrl, alt or meta, so typing never starts it`);
         const steps = parseSteps(line.slice(eq + 1), byId);
         if (typeof steps === "string") return error(i + 1, steps);
-        const clash = checkConflicts(combo, trigger, i + 1);
+        const clash = checkConflicts(combos, trigger, i + 1);
         if (clash) return error(i + 1, clash);
-        bindings.push({ combo, trigger, steps });
+        bindings.push({ line: i + 1, combos, keys, trigger, steps });
     });
+
+    /** Combos of the sequence under way, empty when idle. */
+    let typed: string[] = [];
+
+    /** Bindings whose trigger goes on past these combo ids. */
+    const after = (ids: string[]) => bindings.filter(b =>
+        b.combos.length > ids.length && ids.every((t, j) => comboId(b.combos[j]) === t));
+
+    /** The hint for the typed combos: each distinct next combo, with its steps if it ends a sequence. */
+    function hint(keys: string[]): Effect {
+        const next = new Map<string, HintEntry>();
+        for (const b of after(typed)) {
+            const id = comboId(b.combos[typed.length]);
+            if (!next.has(id)) next.set(id, { key: b.keys[typed.length], steps: b.combos.length === typed.length + 1 ? b.steps : null });
+        }
+        return { type: "hint", keys: keys.join(" "), next: [...next.values()] };
+    }
 
     return {
         problems,
         feed(e) {
-            if (e.type !== "keydown" || e.repeat) return [];
+            const cancel = (): Effect[] => {
+                typed = [];
+                return e.type === "keydown" ? [{ type: "cancel" }, { type: "swallow" }] : [{ type: "cancel" }];
+            };
+            if (e.type === "blur") return typed.length ? cancel() : [];
+            if (e.type !== "keydown") return [];
+            // No timeout mid-sequence: holding the last key or reaching for a modifier keeps it going.
+            if (e.repeat) return typed.length ? [{ type: "swallow" }] : [];
+            if (MODIFIER_KEYS.has(e.key)) return [];
             const key = eventKey(e);
-            const hit = bindings.find(({ combo: c }) =>
-                c.ctrl === e.ctrl && c.alt === e.alt && c.shift === e.shift && c.meta === e.meta && c.key === key);
-            if (!hit) return [];
+            if (typed.length && key === "escape") return cancel();
+            const id = comboId({ ctrl: e.ctrl, alt: e.alt, shift: e.shift, meta: e.meta, key });
+            const hits = after(typed).filter(b => comboId(b.combos[typed.length]) === id);
+            // Mid-sequence, a key that doesn't continue it is swallowed so it doesn't type a stray letter.
+            if (!hits.length) return typed.length ? cancel() : [];
             // A bare key (no ctrl/alt/meta) shouldn't fire while typing.
-            const bare = !hit.combo.ctrl && !hit.combo.alt && !hit.combo.meta;
-            if (bare && e.inTextField) return [];
-            return [{ type: "run", trigger: hit.trigger, steps: hit.steps }, { type: "swallow" }];
+            const [c] = hits[0].combos;
+            if (!typed.length && !c.ctrl && !c.alt && !c.meta && e.inTextField) return [];
+            const done = hits.find(b => b.combos.length === typed.length + 1);
+            if (done) {
+                typed = [];
+                return [{ type: "run", trigger: done.trigger, steps: done.steps }, { type: "swallow" }];
+            }
+            typed.push(id);
+            return [hint(hits[0].keys.slice(0, typed.length)), { type: "swallow" }];
         }
     };
 }
