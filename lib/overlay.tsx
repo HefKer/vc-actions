@@ -52,7 +52,8 @@ const ACCENT: Record<OverlayKind, string> = {
     error: "var(--status-danger, #f23f43)"
 };
 
-function OverlayBox({ kind, children }: { kind: OverlayKind; children: ReactNode; }) {
+/** The overlay's box, also used by message mode's own hint layer. */
+export function OverlayBox({ kind, children }: { kind: OverlayKind; children: ReactNode; }) {
     return (
         <div
             role={kind === "error" ? "alert" : "status"}
