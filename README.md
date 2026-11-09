@@ -43,7 +43,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `notifmute` | `/notifmute <what>` | `notifmute channel` / `server`: mute the channel you're in (DMs too) or the server you're viewing until you unmute, like its Mute menu item; unmute if it's muted (a timed mute too) |
 | `notifs` | `/notifs <state>` | `notifs on` / `off` / `toggle`: Discord's desktop notifications, the "Enable Desktop Notifications" switch in Settings → Notifications |
 | `inbox` | | Open Discord's notification inbox on its Mentions tab, like Ctrl+I (closes it if it's open) |
-| `messagemode` | | Pick messages in the channel with the keyboard, in the window you pressed it in, to reply, react or forward (several at once); see [Message mode](#message-mode). Pressed again, it ends |
+| `messagemode` | | Pick messages in the channel with the keyboard, in the window you pressed it in (search, labels), to reply, react, copy, pin, edit, delete, open a thread or forward (several at once); see [Message mode](#message-mode). Pressed again, it ends |
 | `reply` | | `reply last`: reply to the newest message in the channel you're viewing, like Discord's Reply (it pings the author, unless that's you); the composer gets focus |
 | `react` | | `react <emoji>` reacts to the newest message in the channel you're viewing: `👍`, `thumbsup` or `:thumbsup:`, `<:name:id>`, or a custom emoji's name (see [Names](#names)). Says so if you already reacted with it |
 | `upload` | | Open the file chooser to upload files to the channel shown in the window you pressed it in (pop-outs too), like the composer's **+ → Upload a File**. Picked files land in the composer as attachments, unsent. `upload clipboard` instead attaches the copied image(s), as pasting does; says so if the clipboard holds no image (copied files from a file manager don't count: Chromium only exposes images) |
@@ -53,6 +53,9 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `vcpick` | | Fuzzy-pick a voice channel, showing who's in it, and join it; Shift+Enter just opens its view. See [Pickers](#pickers) |
 | `soundpick` | | Fuzzy-pick a soundboard sound and play it in your voice channel, like `soundboard`; see [Pickers](#pickers) |
 | `presetpick` | | Fuzzy-pick a VcPresets preset: not live, stream with it like `stream`; live, retarget to it like `retarget`. See [Pickers](#pickers) |
+| `upload` | | Open the file chooser to upload files to the channel shown in the window you pressed it in (pop-outs too), like the composer's **+ → Upload a File**. Picked files land in the composer as attachments, unsent |
+| `edit` | | `edit last`: edit your newest message in the channel shown in the window you pressed it in, like Up in an empty message box (Discord's inline editor opens). Says so if there's none |
+| `scroll` | | `scroll top` / `bottom` / `unread`: scroll the channel shown in the window you pressed it in to its first message, its newest, or its first unread one like the new-messages bar's jump. Loaded messages are scrolled to; otherwise Discord's jump loads them. "No unread messages here." when there's none |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -270,16 +273,34 @@ or `meta` are the mode's and never reach the composer; bindings keep working.
 |---|---|
 | `j` / `k` (or Down / Up) | Next newer / older message. A count first moves that many: `3k` |
 | `g` / `G` (or Home / End) | Oldest loaded / newest message |
+| `z` | Scroll the message to the middle of the chat (vim's `zz`) |
+| `/` | Search the loaded messages: type, and the cursor jumps to the nearest older match (text, author names, embeds, file names; lowercase matches any case, a capital makes it exact). Messages that don't match fade. `Enter` keeps the match, `Esc` (or Backspace on an empty search) goes back to where you were; `/` then `Enter` repeats the last search |
+| `n` / `N` | Next older / newer match of the last search, wrapping around; a count works (`3n`). Matches stay tinted until `Esc` |
+| `;` | Labels: a letter or two on every message on screen (Vimium style); type one to move there. A wrong letter or `Esc` cancels |
+| `o` | Go to the message this one replies to: the cursor moves there if it's loaded, else Discord jumps there (as clicking the reply does) and the cursor follows |
 | `r` / `R` | Reply, pinging like Discord's Reply (the author, unless that's you) / reply without a ping. The composer gets focus |
 | `e` | Open Discord's reaction picker on the message, as the context menu's Add Reaction does |
+| `E` | Edit the message (yours only) in Discord's inline editor, like its Edit |
+| `t` | Open the message's thread, or start one on it with Discord's new-thread form |
+| `c` / `l` | Copy the text / the link of the selected messages (oldest first, one per line or paragraph), or of this one |
+| `p` | Pin the message, or unpin it if it's pinned, through Discord's confirm dialog |
+| `d` | Delete the message (yours, or anyone's with Manage Messages) through Discord's confirm dialog |
 | `space` | Select or unselect the message (green bar), up to 10 |
 | `f` | Forward the selected messages, or the highlighted one if none is selected |
-| `Esc` | Drop a typed count; else clear the selection; else leave |
+| `Esc` | Drop a typed count; else clear the search tint; else clear the selection; else leave |
 
-The mode ends after `r`, `R`, `e` and `f` (the composer, picker or dialog takes the keys from there), on `Esc`,
-when you go to another channel, when the window loses focus, and when you press the binding again. The messages it
-moves through are the ones Discord has loaded and draws, oldest first; Discord loads older ones as the list
-scrolls up, so `g` then `k` reaches further back. A collapsed blocked message isn't drawn, so it's skipped.
+The mode ends after `r`, `R`, `e`, `E`, `t` and `f` (the composer, picker, editor, thread or dialog takes the keys from
+there; if Discord refuses, say it's not your message, it stays on), on `Esc`, when you go to another channel (`o` on a
+reply elsewhere too), when the window loses focus, and when you press the binding again. `p` and `d` keep it on: while
+Discord's dialog is open, keys go to the dialog. The messages it moves through are the ones Discord has loaded and
+draws, oldest first; Discord loads older ones as the list scrolls up, so `g` then `k` reaches further back. A collapsed
+blocked message isn't drawn, so it's skipped. Permissions are checked as Discord's menus do: pinning needs Pin Messages
+in servers, starting a thread Create Public Threads, deleting someone else's message Manage Messages.
+
+**Scrolling and the hint:** moving scrolls only as far as needed to show the whole message, with room to spare for the
+hint; the newest message scrolls the chat to the very end. The hint is compact and sits inside the chat at its bottom
+edge, and flips to the top edge when it would cover the message (the newest one, scrolled all the way down), and back
+when the cursor reaches the top. Geometry is pure in `lib/messageView.ts`.
 
 **Forwarding several:** `f` with a selection opens Discord's forward dialog, previewing the first selected message
 (an overlay note says all of them go). Pick destinations (Discord allows 5) and an optional message, then Send:
@@ -290,11 +311,19 @@ messages, ephemeral ones) are skipped. A single message goes through Discord's d
 Forward button.
 
 How: the list is MessageStore's messages for the channel that have a `chat-messages-<channel>-<message>` element
-in that window; the highlight is a `<style>` with id selectors, so it survives Discord re-rendering a message.
+in that window; the highlight (and the search's fading and tint) is a `<style>` with id selectors, so it survives
+Discord re-rendering a message. The hint and the labels are a layer of our own in that window (not the overlay's hint
+slot), placed from the chat scroller's box. The keys are a pure state machine (`lib/messageMode.ts`).
 Reply dispatches `CREATE_PENDING_REPLY` and focuses the composer, as the hover toolbar's Reply does; the picker
-opens through `ComponentDispatch`'s `TOGGLE_REACTION_POPOUT` for that message, as the context menu does; forward calls
+opens through `ComponentDispatch`'s `TOGGLE_REACTION_POPOUT` for that message, as the context menu does, after
+focusing the message so Discord draws its hover toolbar, where the picker is anchored. Forward calls
 Discord's `openForwardModal` (found by code), and for several gives it a `customSendHandler` that sends what its own
-send does: an empty message with a `message_reference` of type forward. `react` uses Discord's own add-reaction.
+send does: an empty message with a `message_reference` of type forward. Copy builds the link as the context menu's
+Copy Message Link does. Edit is `startEditMessageRecord` (also `edit last`, with MessageStore's last editable message,
+as Up in the composer does); pin and delete call Discord's own `confirmPin` / `confirmUnpin` / `confirmDelete` dialogs;
+the thread is Discord's open-thread or create-thread function (found by code); `o` and `scroll` use `jumpToMessage`
+(with `returnMessageId`, as clicking a reply does) and `jumpToPresent`, and `scroll unread` jumps to the message after
+ReadStateStore's ack as the new-messages bar does. `react` uses Discord's own add-reaction.
 
 ## Names
 
@@ -375,6 +404,8 @@ Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: 
 
 Unit tests (pure modules in `lib/`: binding engine, event hooks, setting editor's colouring and autocomplete, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates, channel/server/voice picker rows and sidebar order,
 cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker, message mode keys, `react`'s emoji arg; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
+cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker, message mode keys, search and labels, message mode scrolling and hint placement, `react`'s emoji arg; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 
@@ -382,7 +413,8 @@ real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks th
 
 - `focustile` only changes the call view's focus; it doesn't open the call view.
 - Message mode works on the channel's main message list; a thread open in the side panel isn't reachable. The
-  forward dialog is Discord's modal, so from a pop-out it most likely opens in the main window (ADR 0001).
+  forward, pin and delete dialogs are Discord's modals, so from a pop-out they most likely open in the main window
+  (ADR 0001). Search and labels cover only the messages Discord has loaded / shows on screen.
 - Pop-out needs you in a voice channel; a user's stream must be in yours, Discord won't watch it from outside.
 - The `/stream` and `/retarget` preset choices rely on Discord re-reading a built-in command's `choices`; if they show
   stale or none, type the name: it's still matched.

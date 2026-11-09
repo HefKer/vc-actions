@@ -59,5 +59,9 @@ The fuzzy list `palette` and the `*pick` actions (`favpick`, `userpick`, `channe
 _Avoid_: menu, popup, switcher
 
 **Message mode**:
-A modal layer over the messages of a channel, entered with `messagemode`: keys move a highlight, select messages and reply, react or forward, instead of typing.
+A modal layer over the messages of a channel, entered with `messagemode`: keys move a highlight (the cursor), search, select messages and act on them (reply, react, copy, pin, edit, delete, thread, forward), instead of typing.
 _Avoid_: selection mode, visual mode
+
+**Label**:
+In message mode, the one or two letters `;` puts on each message on screen; typing one moves the cursor there (Vimium style).
+_Avoid_: hint (that's the which-key hint), tag, mark
