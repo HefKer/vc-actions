@@ -6,6 +6,7 @@
 
 import type { Action } from "../registry";
 import deafen from "./deafen";
+import localMute from "./localMute";
 import mute from "./mute";
 import popout from "./popout";
 import presetNext from "./presetNext";
@@ -14,6 +15,7 @@ import stopStream from "./stopStream";
 import stream from "./stream";
 import streamToggle from "./streamToggle";
 import unmute from "./unmute";
+import volume from "./volume";
 
 /** Every action. Adding one: write actions/<name>.ts, import it here, list it below. */
 export const actions: Action[] = [
@@ -26,4 +28,6 @@ export const actions: Action[] = [
     mute,
     unmute,
     deafen,
+    volume,
+    localMute,
 ];
