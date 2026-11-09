@@ -8,6 +8,7 @@ import type { Action } from "../registry";
 import camera from "./camera";
 import deafen from "./deafen";
 import fav from "./fav";
+import favpick from "./favpick";
 import favtoggle from "./favtoggle";
 import focustile from "./focustile";
 import gotocall from "./gotocall";
@@ -62,4 +63,5 @@ export const actions: Action[] = [
     palette,
     status,
     customstatus,
+    favpick,
 ];

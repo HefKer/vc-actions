@@ -133,9 +133,15 @@ export interface PickerOptions {
 }
 
 /** Open a picker in `win`'s overlay panel. Closing it (Esc, a pick, leaving the box) puts focus back where it was. */
+/** Where each window's picker puts focus back, kept for a picker opened from another (`favpick` run from the palette). */
+const returnFocus = new WeakMap<Document, HTMLElement | null>();
+
 export async function openPicker({ win, entries, usage, placeholder, enter, complete = false, pick }: PickerOptions) {
     const doc = win.document;
-    const before = doc.activeElement as HTMLElement | null;
+    const active = doc.activeElement as HTMLElement | null;
+    // Focus still in a picker that's closing (its box, in lib/overlay.tsx's host): go back where that one would.
+    const before = active?.closest("#quick-actions-overlay") ? returnFocus.get(doc) ?? null : active;
+    returnFocus.set(doc, before);
     const used = await frecencyOf(usage);
     // Back to where you were typing, so the picker leaves no trace.
     const gone = () => {

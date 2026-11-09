@@ -26,7 +26,7 @@ export function loadFavorites() {
 }
 
 /** Favorites you're still in; a server you left stays saved and comes back if you rejoin. */
-function favorites(): GuildInfo[] {
+export function favorites(): GuildInfo[] {
     return ids.flatMap(id => {
         const g = GuildStore.getGuild(id);
         return g ? [{ id, name: g.name }] : [];
