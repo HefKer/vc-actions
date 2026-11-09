@@ -5,11 +5,13 @@
  */
 
 import { Logger } from "@utils/Logger";
-import { ParticipantType } from "@vencord/discord-types/enums";
 import { findByCodeLazy, findByPropsLazy } from "@webpack";
 import { ApplicationStreamingStore, ChannelRTCStore, ChannelStore, FluxDispatcher, PopoutWindowStore, SelectedChannelStore, UserStore } from "@webpack/common";
 
 import { nextAfter, prevBefore } from "./cycle";
+
+/** Mirrors @vencord/discord-types/enums ParticipantType; that package doesn't resolve from this symlinked plugin. */
+const ParticipantType = { STREAM: 0, USER: 2 } as const;
 
 const logger = new Logger("VcActions");
 
