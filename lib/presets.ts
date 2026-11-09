@@ -35,6 +35,16 @@ export function presets(): VcPresetsApi {
     return p;
 }
 
+/*
+ * The preset our own actions last went live with or retargeted to. VcPresets' API doesn't say which
+ * preset is live, so a stream started from VcPresets' own UI leaves this stale or null.
+ */
+let current: string | null = null;
+export const currentPreset = () => current;
+export function setCurrentPreset(name: string | null) {
+    current = name;
+}
+
 export function presetNames(): string[] {
     try {
         return lookup()?.listPresets?.().map(p => p.name) ?? [];
