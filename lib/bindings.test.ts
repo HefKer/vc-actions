@@ -169,3 +169,11 @@ test("a trigger that is one of Discord's default shortcuts is a warning naming i
     assert.equal(run.type === "run" && run.steps[0].actionId, "stopstream");
     assert.equal(engine.feed(down("alt+ArrowDown"))[0].type, "run");
 });
+
+test("bindings lists the loaded bindings as written, bad lines left out", () => {
+    const engine = createBindingEngine("ctrl+alt+p = popout\nctrl+alt+n = nosuch\nctrl+alt+1 = stream Gaming  # comment", actions);
+    assert.deepEqual(engine.bindings, [
+        { trigger: "ctrl+alt+p", steps: ["popout"] },
+        { trigger: "ctrl+alt+1", steps: ["stream Gaming"] }
+    ]);
+});

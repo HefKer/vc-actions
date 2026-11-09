@@ -125,7 +125,7 @@ async function runSteps(steps: Step[], win: Window) {
     const reply = overlayReply(win.document);
     for (const [i, step] of steps.entries()) {
         const prefix = steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "";
-        const ctx: ActionContext = { args: step.args, source: "hotkey", reply };
+        const ctx: ActionContext = { args: step.args, source: "hotkey", reply, win, bindings: engine?.bindings };
         if (!await runAction(byId.get(step.actionId)!, ctx, prefix)) return;
     }
 }
