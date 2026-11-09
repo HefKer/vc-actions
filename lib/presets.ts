@@ -6,6 +6,8 @@
 
 import { isPluginEnabled } from "@api/PluginManager";
 
+import { resolveName } from "./resolve";
+
 /** VcPresets' runtime API (../vc-presets). Looked up at call time, never imported. */
 export interface VcPresetsApi {
     listPresets(): { name: string; }[];
@@ -53,19 +55,11 @@ export function presetNames(): string[] {
     }
 }
 
-/** Resolve a typed name to a preset: exact, then case-insensitive, then unique prefix. */
+/** Resolve a typed name to a preset (see resolveName). */
 export function resolvePreset(input: string | undefined): string {
     const names = presets().listPresets().map(p => p.name);
     if (!names.length) throw new PresetsMissing("No presets saved yet: add one in VcPresets.");
-    const list = `Presets: ${names.join(", ")}`;
-    if (!input) throw new PresetsMissing(`Name a preset. ${list}`);
-    const lower = input.toLowerCase();
-    const hit = names.find(n => n === input)
-        ?? names.find(n => n.toLowerCase() === lower)
-        ?? (() => {
-            const pre = names.filter(n => n.toLowerCase().startsWith(lower));
-            return pre.length === 1 ? pre[0] : undefined;
-        })();
-    if (!hit) throw new PresetsMissing(`No preset "${input}". ${list}`);
-    return hit;
+    const r = resolveName(input, names.map(n => ({ names: [n], value: n })), "preset");
+    if (!r.ok) throw new PresetsMissing(r.error);
+    return r.value;
 }

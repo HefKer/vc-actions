@@ -16,7 +16,6 @@ Each action is one file in `actions/`; the same action runs from a slash command
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
-Preset names match exactly, then case-insensitively, then by unique prefix.
 VcPresets doesn't say which preset is live, so `preset next` counts from the preset VcActions last started or
 retargeted to (the first preset if none yet); a stream started from VcPresets' own UI isn't seen.
 
@@ -40,7 +39,8 @@ Grammar: `<combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. 
 its args in order; the last arg takes the rest of the step, so preset names can have spaces. `;` always
 separates steps, so args can't contain it. A binding with several steps (a macro) runs them in order, each
 waiting for the previous one to finish; the first failing step stops the rest and its error names the step.
-A bad step (unknown action, empty step) makes the whole line an error. `popout` takes a user id. Modifiers:
+A bad step (unknown action, empty step) makes the whole line an error. `popout` takes a user (see
+[Names](#names)). Modifiers:
 `ctrl`, `alt`, `shift`, `meta`. Letters and digits match by physical key, so `ctrl+shift+1` works. Hotkeys
 fire in the main window and in every Discord pop-out (call or stream pop-outs), whichever is focused; global
 ones belong in niri binds. None are bound by default. Feedback (success, errors) shows in a small overlay at
@@ -50,6 +50,14 @@ Problems are logged and shown in a toast when you change the setting. A bad line
 earlier line is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
 default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
 Discord's. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
+
+## Names
+
+Presets and users (and later voice channels and sounds) are matched by name the same way: exactly, then
+case-insensitively, then by unique prefix; a prefix shared by several, or no match, is an error that lists the
+candidates. A user in a binding is an id (or `<@id>`) or a name: nickname, friend nickname, display name or
+username, matched against the people in your voice channel first, then your friends, so an exact friend name
+still beats an in-call prefix (`ctrl+alt+a = popout alice`).
 
 ## Adding an action
 
@@ -70,7 +78,7 @@ Discord's. Discord has no readable list of its shortcuts, so they're hard-coded 
 2. Import it in `actions/index.ts` and add it to the list.
 
 `reply` posts a bot message for slash commands and shows the overlay (in the window the key was pressed in) for hotkeys. Throw an `Error` to report a failure.
-Arg `type: "user"` gives a user picker; `choices: () => string[]` offers values while typing.
+Arg `type: "user"` gives a user picker, and in bindings an id or name that reaches `run` as an id; `choices: () => string[]` offers values while typing.
 
 ## How pop-out works
 
@@ -107,7 +115,7 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`, Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+Unit tests (pure modules in `lib/`: binding engine, name resolver, Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 
