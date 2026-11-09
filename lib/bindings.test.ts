@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 // @ts-expect-error TS5097: node --test resolves only the real file name; tsc still type-checks the import.
-import { type ActionMeta, createBindingEngine, type KeyInput, repeatText } from "./bindings.ts";
+import { type ActionMeta, createBindingEngine, groupLabel, type KeyInput, repeatText } from "./bindings.ts";
 
 const actions: ActionMeta[] = [
     { id: "popout", args: ["user"] },
@@ -428,4 +428,87 @@ test("repeatText gives the steps' text back for repeat, and nothing when they co
     assert.equal(repeatText(steps("stream  Gaming Night ;popout")), "stream  Gaming Night; popout");
     assert.equal(repeatText(steps("repeat")), undefined);
     assert.equal(repeatText(steps("popout; repeat")), undefined);
+});
+
+const grouped = [
+    "ctrl+space = +leader",
+    "ctrl+space v j = stream General",
+    "ctrl+space v l = stopstream",
+    "ctrl+space v = +stream",
+    "ctrl+space p = popout",
+    "ctrl+space x y = popout"
+].join("\n");
+
+test("a group label isn't a binding: no conflict with the sequences under it, which still run", () => {
+    const engine = createBindingEngine(grouped, actions);
+    assert.deepEqual(engine.problems, []);
+    assert.deepEqual(engine.groups, [
+        { keys: "ctrl+space", label: { label: "leader", name: "leader" } },
+        { keys: "ctrl+space v", label: { label: "stream", name: "stream" } }
+    ]);
+    engine.feed(space);
+    engine.feed(down("v"));
+    assert.equal(engine.feed(down("j"))[0].type, "run");
+});
+
+test("the hint names a labelled group with its binding count, and the header shows the typed keys' label", () => {
+    const engine = createBindingEngine(grouped, actions);
+    assert.deepEqual(engine.feed(space)[0], {
+        type: "hint", keys: "ctrl+space", group: { label: "leader", name: "leader" }, next: [
+            { key: "v", steps: null, group: { label: "stream", name: "stream" }, count: 2 },
+            { key: "p", steps: [popoutStep] },
+            { key: "x", steps: null }
+        ]
+    });
+    assert.deepEqual(engine.feed(down("v"))[0], {
+        type: "hint", keys: "ctrl+space v", group: { label: "stream", name: "stream" }, next: [
+            { key: "j", steps: [streamStep] },
+            { key: "l", steps: [{ actionId: "stopstream", args: {}, text: "stopstream" }] }
+        ]
+    });
+});
+
+test("bindings list the labelled groups their trigger falls under, shortest first", () => {
+    const engine = createBindingEngine(grouped, actions);
+    const leader = { depth: 1, label: { label: "leader", name: "leader" } };
+    assert.deepEqual(engine.bindings[0].groups, [leader, { depth: 2, label: { label: "stream", name: "stream" } }]);
+    assert.deepEqual(engine.bindings[2].groups, [leader]);
+    assert.equal(createBindingEngine("ctrl+alt+p = popout", actions).bindings[0].groups, undefined);
+});
+
+test("a group labelling nothing, labelled twice, empty, held or unreadable is an error; the first label wins", () => {
+    const engine = createBindingEngine([
+        "ctrl+space c = +config",
+        "ctrl+space v = +stream",
+        "ctrl+space v j = stream General",
+        "control+space  v = +other",
+        "ctrl+space p = popout",
+        "ctrl+space p = +pop",
+        "hold ctrl+space v = +held",
+        "ctrl+space v = +",
+        "ctrl+nosuch+x v = +bad",
+        "f8 = +bare"
+    ].join("\n"), actions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]),
+        [["error", 1], ["error", 4], ["error", 6], ["error", 7], ["error", 8], ["error", 9], ["error", 10]]);
+    assert.match(engine.problems[0].message, /"ctrl\+space c" labels nothing/);
+    assert.match(engine.problems[1].message, /already labelled on line 2/);
+    assert.match(engine.problems[2].message, /labels nothing: it's bound on line 5/);
+    assert.match(engine.problems[3].message, /hold/);
+    assert.match(engine.problems[4].message, /needs a label/);
+    assert.match(engine.problems[5].message, /can't read/);
+    assert.deepEqual(engine.groups, [{ keys: "ctrl+space v", label: { label: "stream", name: "stream" } }]);
+    engine.feed(space);
+    assert.equal(engine.feed(down("p"))[0].type, "run");
+});
+
+test("groupLabel reads a right side starting with + as a label, a leading emoji as its icon", () => {
+    assert.equal(groupLabel(" popout alice"), null);
+    assert.deepEqual(groupLabel(" +config "), { label: "config", name: "config" });
+    assert.deepEqual(groupLabel("+📺 stream"), { label: "📺 stream", name: "stream", icon: "📺" });
+    assert.deepEqual(groupLabel("+stream 📺"), { label: "stream 📺", name: "stream 📺" });
+    assert.deepEqual(groupLabel("+❤️ fav # comment"), { label: "❤️ fav", name: "fav", icon: "❤️" });
+    assert.deepEqual(groupLabel("+👍🏽x"), { label: "👍🏽x", name: "x", icon: "👍🏽" });
+    assert.deepEqual(groupLabel("+📺"), { label: "📺", name: "📺" });
+    assert.deepEqual(groupLabel("+"), { label: "", name: "" });
 });

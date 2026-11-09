@@ -54,8 +54,11 @@ export type Effect =
     | { type: "hold"; trigger: string; step: Step; }
     /** Hold binding let go (keyup or blur): call the release callback kept under `trigger`. */
     | { type: "release"; trigger: string; }
-    /** A sequence is under way: show the which-key hint (replacing any earlier one) until a run or cancel. */
-    | { type: "hint"; keys: string; next: HintEntry[]; }
+    /**
+     * A sequence is under way: show the which-key hint (replacing any earlier one) until a run or cancel.
+     * `group` is the label of the typed keys, when they're a labelled group.
+     */
+    | { type: "hint"; keys: string; group?: GroupLabel; next: HintEntry[]; }
     /** The sequence under way ended without running anything: hide the hint. */
     | { type: "cancel"; }
     /** Stop the event reaching Discord (preventDefault + stopPropagation). Absent means pass it through. */
@@ -66,6 +69,24 @@ export interface HintEntry {
     key: string;
     /** What it runs, or `null` when more keys follow. */
     steps: Step[] | null;
+    /** More keys follow and the keys so far are a labelled group: its label. */
+    group?: GroupLabel;
+    /** With `group`: how many bindings are under it. */
+    count?: number;
+}
+
+/** A group's label, from `<prefix> = +<label>`: `label` as written, split into an optional leading emoji and the name. */
+export interface GroupLabel {
+    label: string;
+    name: string;
+    icon?: string;
+}
+
+/** A loaded group line (`ctrl+space c = +config`) as written. */
+export interface GroupInfo {
+    /** The prefix the other sequences continue. */
+    keys: string;
+    label: GroupLabel;
 }
 
 export interface Problem {
@@ -80,6 +101,8 @@ export interface BindingInfo {
     trigger: string;
     steps: string[];
     hold?: boolean;
+    /** The labelled groups its trigger falls under, shortest prefix first; `depth` is how many combos the prefix has. */
+    groups?: { depth: number; label: GroupLabel; }[];
 }
 
 /** A loaded event hook (`on vcjoin = gotocall`) as written. */
@@ -95,6 +118,8 @@ export interface BindingEngine {
     readonly bindings: readonly BindingInfo[];
     /** The event hooks that loaded, as written, in setting order. */
     readonly hooks: readonly HookInfo[];
+    /** The group labels that loaded, as written, in setting order. */
+    readonly groups: readonly GroupInfo[];
     /** The steps hooked to `event`, if any. */
     hookSteps(event: HookEvent): Step[] | undefined;
     feed(event: KeyInput): Effect[];
@@ -191,6 +216,21 @@ function splitArgs(rest: string, names: string[]): Record<string, string | undef
     return out;
 }
 
+const LEADING_EMOJI = /^((?:\p{Regional_Indicator}{2}|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*)*))\s*(.*)$/u;
+
+/**
+ * The group label of a binding line's right side, or null when it's steps: a group's right side starts with `+`
+ * (`+config`, `+📺 stream`). A leading emoji is the icon when a name follows it. An empty label (`+` alone) is an
+ * empty `label`. Pure, for anything that reads the setting (the settings editor's highlighting).
+ */
+export function groupLabel(rightSide: string): GroupLabel | null {
+    const text = rightSide.replace(/#.*/, "").trim();
+    if (!text.startsWith("+")) return null;
+    const label = text.slice(1).trim();
+    const m = LEADING_EMOJI.exec(label);
+    return m && m[2] ? { label, name: m[2], icon: m[1] } : { label, name: label };
+}
+
 /** Split the right side of a binding on `;` into steps; a string is the error for the whole binding. */
 function parseSteps(text: string, byId: Map<string, ActionMeta>): Step[] | string {
     const parts = text.split(";").map(s => s.trim());
@@ -207,13 +247,15 @@ function parseSteps(text: string, byId: Map<string, ActionMeta>): Step[] | strin
 }
 
 /**
- * Build an engine from the bindings text and the known actions: `[hold] trigger = step` or `on event = step`
- * per line, `#` comments.
+ * Build an engine from the bindings text and the known actions: `[hold] trigger = step`, `on event = step` or
+ * `prefix = +label` per line, `#` comments.
  */
 export function createBindingEngine(text: string, actions: ActionMeta[]): BindingEngine {
     const byId = new Map(actions.map(a => [a.id, a]));
     const bindings: Binding[] = [];
     const hooks = new Map<HookEvent, { line: number; steps: Step[]; }>();
+    /** Group lines by their prefix's combo ids joined by spaces; checked against the bindings once all are read. */
+    const groups = new Map<string, { line: number; ids: string[]; keys: string; label: GroupLabel; }>();
     const problems: Problem[] = [];
     const error = (line: number, message: string) => problems.push({ severity: "error", line, message });
 
@@ -268,6 +310,18 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
             hooks.set(event, { line: i + 1, steps });
             return;
         }
+        const group = groupLabel(line.slice(eq + 1));
+        if (group) {
+            if (hold) return error(i + 1, `hold doesn't go with a group label: "${trigger}" only starts other sequences`);
+            if (!group.label) return error(i + 1, `group "${trigger}" needs a label after +`);
+            const parsedKeys = trigger.split(/\s+/).map(parseCombo);
+            if (!parsedKeys.every(c => c)) return error(i + 1, `can't read trigger "${trigger}"`);
+            const ids = (parsedKeys as Combo[]).map(comboId);
+            const earlier = groups.get(ids.join(" "));
+            if (earlier) return error(i + 1, `"${trigger}" is already labelled on line ${earlier.line}, which wins`);
+            groups.set(ids.join(" "), { line: i + 1, ids, keys: trigger, label: group });
+            return;
+        }
         if (hold && /\s/.test(trigger)) return error(i + 1, `hold works only on a single combo, not "${trigger}"`);
         const keys = trigger.split(/\s+/);
         const parsed = keys.map(parseCombo);
@@ -288,30 +342,59 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         bindings.push({ line: i + 1, combos, keys, trigger, hold, steps });
     });
 
+    /** Bindings whose trigger goes on past these combo ids. */
+    const after = (ids: string[]) => bindings.filter(b =>
+        b.combos.length > ids.length && ids.every((t, j) => comboId(b.combos[j]) === t));
+
+    // Order-independent: a label may come before or after the sequences it names.
+    for (const [id, g] of groups) {
+        if (after(g.ids).length) continue;
+        groups.delete(id);
+        const bound = bindings.find(b => b.combos.map(comboId).join(" ") === id);
+        error(g.line, bound
+            ? `group "${g.keys}" labels nothing: it's bound on line ${bound.line}, so no sequence can go on past it`
+            : `group "${g.keys}" labels nothing: no sequence goes on past it`);
+    }
+    problems.sort((a, b) => a.line - b.line);
+
+    /** The labelled groups a binding's trigger falls under, shortest first. */
+    const groupsOf = (b: Binding) => b.combos.slice(0, -1).flatMap((_, j) => {
+        const g = groups.get(b.combos.slice(0, j + 1).map(comboId).join(" "));
+        return g ? [{ depth: j + 1, label: g.label }] : [];
+    });
+
     /** Hold bindings whose key is down. */
     const held = new Set<Binding>();
 
     /** Combos of the sequence under way, empty when idle. */
     let typed: string[] = [];
 
-    /** Bindings whose trigger goes on past these combo ids. */
-    const after = (ids: string[]) => bindings.filter(b =>
-        b.combos.length > ids.length && ids.every((t, j) => comboId(b.combos[j]) === t));
-
     /** The hint for the typed combos: each distinct next combo, with its steps if it ends a sequence. */
     function hint(keys: string[]): Effect {
         const next = new Map<string, HintEntry>();
         for (const b of after(typed)) {
             const id = comboId(b.combos[typed.length]);
-            if (!next.has(id)) next.set(id, { key: b.keys[typed.length], steps: b.combos.length === typed.length + 1 ? b.steps : null });
+            if (next.has(id)) continue;
+            if (b.combos.length === typed.length + 1) {
+                next.set(id, { key: b.keys[typed.length], steps: b.steps });
+                continue;
+            }
+            const ids = [...typed, id];
+            const g = groups.get(ids.join(" "));
+            next.set(id, { key: b.keys[typed.length], steps: null, ...(g ? { group: g.label, count: after(ids).length } : {}) });
         }
-        return { type: "hint", keys: keys.join(" "), next: [...next.values()] };
+        const g = groups.get(typed.join(" "));
+        return { type: "hint", keys: keys.join(" "), ...(g ? { group: g.label } : {}), next: [...next.values()] };
     }
 
     return {
         problems,
-        bindings: bindings.map(b => ({ trigger: b.trigger, steps: b.steps.map(s => s.text), ...(b.hold ? { hold: true } : {}) })),
+        bindings: bindings.map(b => {
+            const gs = groupsOf(b);
+            return { trigger: b.trigger, steps: b.steps.map(s => s.text), ...(b.hold ? { hold: true } : {}), ...(gs.length ? { groups: gs } : {}) };
+        }),
         hooks: [...hooks].map(([event, h]) => ({ event, steps: h.steps.map(s => s.text) })),
+        groups: [...groups.values()].map(g => ({ keys: g.keys, label: g.label })),
         hookSteps: event => hooks.get(event)?.steps,
         parseSteps: stepText => parseSteps(stepText, byId),
         feed(e) {
