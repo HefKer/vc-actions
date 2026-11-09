@@ -83,6 +83,11 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
+Unit tests: `node --test` in this repo (Node 24 strips the types; no dependencies) runs the `lib/*.test.ts` files.
+Node 24 doesn't take a directory, so `node --test lib/` fails; use `node --test` or `node --test 'lib/*.test.ts'`.
+Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
+real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
+
 ## Limits
 
 - Pop-out needs you in a voice channel; a user's stream must be in yours, Discord won't watch it from outside.
