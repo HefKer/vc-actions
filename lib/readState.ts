@@ -49,7 +49,7 @@ function sidebarChannels(guildId: string): string[] {
  * is a mention), plus unread messages in your own voice channel; other channels unread when not muted (channel or
  * its category) and set to notify unread for all messages, or with a mention even when muted.
  */
-function isUnread(guildId: string, id: string): boolean {
+export function isUnread(guildId: string, id: string): boolean {
     const ch = ChannelStore.getChannel(id);
     if (!ch) return false;
     const mentions = ReadStateStore.getMentionCount(id) > 0;
