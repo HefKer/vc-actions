@@ -13,6 +13,9 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `streamtoggle` | | `streamtoggle <preset>`: start streaming with that preset if you're not live; if you are, stop, whatever preset the stream uses |
 | `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
+| `mute` | | Mute your mic. Holdable: released, your mute goes back to what it was (push-to-mute) |
+| `unmute` | | Unmute your mic, and undeafen like Discord's own unmute. Holdable: released, both go back (push-to-talk) |
+| `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -37,7 +40,14 @@ ctrl+alt+n = preset next
 
 Words after the action id fill its args in order; the last arg takes the rest of the line, so preset names can
 have spaces. `popout` takes a user id. Modifiers: `ctrl`, `alt`, `shift`, `meta`. Letters and digits match by
-physical key, so `ctrl+shift+1` works. Hotkeys only fire while the Vesktop main window is focused; global
+physical key, so `ctrl+shift+1` works.
+
+**Hold bindings:** `hold ctrl+alt+m = unmute` runs the action on press and undoes it on release: when the key
+(not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
+ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`);
+anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
+
+Hotkeys only fire while the Vesktop main window is focused; global
 ones belong in niri binds. None are bound by default.
 
 ## Adding an action
@@ -60,6 +70,8 @@ ones belong in niri binds. None are bound by default.
 
 `reply` posts a bot message for slash commands and a toast for hotkeys. Throw an `Error` to report a failure.
 Arg `type: "user"` gives a user picker; `choices: () => string[]` offers values while typing.
+`holdable: true` lets hold bindings use the action: its `run` then returns a release callback that undoes it
+(a slash command or a plain binding just drops it).
 
 ## How pop-out works
 
