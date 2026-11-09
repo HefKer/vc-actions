@@ -13,7 +13,6 @@ import { React, RelationshipStore } from "@webpack/common";
 import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, repeatText, type Step } from "./lib/bindings";
 import { stopMessageMode } from "./actions/messagemode";
-import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { logger, myId } from "./lib/discord";
 import { UserError } from "./lib/errors";
 import { watchEvents } from "./lib/events";
