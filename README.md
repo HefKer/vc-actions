@@ -16,6 +16,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `mute` | | Mute your mic. Holdable: released, your mute goes back to what it was (push-to-mute) |
 | `unmute` | | Unmute your mic, and undeafen like Discord's own unmute. Holdable: released, both go back (push-to-talk) |
 | `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
+| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader. Any key closes it; Esc is swallowed |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -36,6 +37,7 @@ ctrl+alt+2 = retarget Browser
 ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
 ctrl+alt+g = stream Gaming; popout
+ctrl+alt+h = help
 ```
 
 Grammar: `[hold] <combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill

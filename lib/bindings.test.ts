@@ -232,3 +232,11 @@ test("a hold releases on keyup of its key even after its modifiers went up first
     assert.deepEqual(engine.feed(up("ctrl", { key: "Control", code: "ControlLeft", ctrl: false, alt: true })), []);
     assert.deepEqual(engine.feed(up("m")), [{ type: "release", trigger: "ctrl+alt+m" }, { type: "swallow" }]);
 });
+
+test("bindings lists the loaded bindings as written, bad lines left out", () => {
+    const engine = createBindingEngine("ctrl+alt+p = popout\nctrl+alt+n = nosuch\nctrl+alt+1 = stream Gaming  # comment", actions);
+    assert.deepEqual(engine.bindings, [
+        { trigger: "ctrl+alt+p", steps: ["popout"] },
+        { trigger: "ctrl+alt+1", steps: ["stream Gaming"] }
+    ]);
+});
