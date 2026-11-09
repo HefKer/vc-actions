@@ -39,7 +39,7 @@ export default defineAction({
     description: "Show a cheatsheet of the current bindings, grouped by leader, until the next key",
     run({ win = window, bindings = [], reply }) {
         if (!bindings.length) return reply("No bindings set.");
-        const hide = overlay(win.document).show(<Cheatsheet groups={groupByLeader(bindings)} />, { duration: null });
+        const hide = overlay(win.document, "panel").show(<Cheatsheet groups={groupByLeader(bindings)} />, { duration: null });
         // Added while the help key is being dispatched on this same target, so that key doesn't close it.
         const onKey = (e: KeyboardEvent) => {
             win.removeEventListener("keydown", onKey, true);

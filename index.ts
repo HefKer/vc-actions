@@ -212,7 +212,7 @@ function apply(effects: Effect[], e: Event, win: Window) {
             case "hint":
                 endHint();
                 // No timeout: it stays until the sequence runs or is cancelled (#15 story 8).
-                hideHint = overlay(win.document).show(React.createElement(WhichKeyHint, { keys: effect.keys, next: effect.next }), { duration: null });
+                hideHint = overlay(win.document, "hint").show(React.createElement(WhichKeyHint, { keys: effect.keys, next: effect.next }), { duration: null });
                 break;
             case "cancel":
                 endHint();
