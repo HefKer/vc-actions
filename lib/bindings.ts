@@ -121,6 +121,21 @@ function splitArgs(rest: string, names: string[]): Record<string, string | undef
     return out;
 }
 
+/** Split the right side of a binding on `;` into steps; a string is the error for the whole binding. */
+function parseSteps(text: string, byId: Map<string, ActionMeta>): Step[] | string {
+    const parts = text.split(";").map(s => s.trim());
+    const steps: Step[] = [];
+    for (const [n, stepText] of parts.entries()) {
+        const where = parts.length > 1 ? `step ${n + 1}: ` : "";
+        const [actionId = "", ...rest] = stepText.split(/\s+/);
+        if (!actionId) return `${where}empty step`;
+        const action = byId.get(actionId);
+        if (!action) return `${where}no action "${actionId}"`;
+        steps.push({ actionId, args: splitArgs(rest.join(" "), action.args), text: stepText });
+    }
+    return steps;
+}
+
 /** Build an engine from the bindings text (`[hold] trigger = step` per line, `#` comments) and the known actions. */
 export function createBindingEngine(text: string, actions: ActionMeta[]): BindingEngine {
     const byId = new Map(actions.map(a => [a.id, a]));
@@ -136,16 +151,14 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         let trigger = line.slice(0, eq).trim();
         const hold = /^hold\s/i.test(trigger);
         if (hold) trigger = trigger.slice(4).trim();
-        const stepText = line.slice(eq + 1).trim();
-        const [actionId = "", ...rest] = stepText.split(/\s+/);
         if (hold && /\s/.test(trigger)) return error(i + 1, `hold works only on a single combo, not "${trigger}"`);
-        if (hold && stepText.includes(";")) return error(i + 1, "hold works only on a single step, not a macro");
         const combo = parseCombo(trigger);
         if (!combo) return error(i + 1, `can't read trigger "${trigger}"`);
-        const action = byId.get(actionId);
-        if (!action) return error(i + 1, `no action "${actionId}"`);
-        if (hold && !action.holdable) return error(i + 1, `"${actionId}" can't be held: it has no release`);
-        bindings.push({ combo, trigger, hold, steps: [{ actionId, args: splitArgs(rest.join(" "), action.args), text: stepText }] });
+        const steps = parseSteps(line.slice(eq + 1), byId);
+        if (typeof steps === "string") return error(i + 1, steps);
+        if (hold && steps.length > 1) return error(i + 1, "hold works only on a single step, not a macro");
+        if (hold && !byId.get(steps[0].actionId)!.holdable) return error(i + 1, `"${steps[0].actionId}" can't be held: it has no release`);
+        bindings.push({ combo, trigger, hold, steps });
     });
 
     /** Hold bindings whose key is down. */

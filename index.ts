@@ -9,12 +9,14 @@ import { definePluginSettings } from "@api/Settings";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { CommandOption } from "@vencord/discord-types";
-import { RelationshipStore, showToast, UserStore } from "@webpack/common";
+import { RelationshipStore, UserStore } from "@webpack/common";
 
 import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
+import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { PresetsMissing } from "./lib/presets";
 import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
+import { attachToWindows } from "./lib/windows";
 import type { Action, ActionArg, ActionContext, Release } from "./registry";
 
 const logger = new Logger("VcActions");
@@ -26,7 +28,7 @@ const settings = definePluginSettings({
     hotkeys: {
         type: OptionType.STRING,
         multiline: true,
-        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, or `hold combo = action` to undo it on release. "
+        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, `;` between steps, `hold combo = action` to undo it on release. "
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+p = popout, ctrl+alt+1 = stream Gaming. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         default: defaultHotkeys,
@@ -39,20 +41,21 @@ const settings = definePluginSettings({
     }
 });
 
-const toastVariant = { info: "default", success: "success", error: "critical" } as const;
+/** Binding feedback goes to our overlay in the window the key was pressed in (ADR 0001). */
+const overlayReply = (doc: Document) => (text: string, kind: OverlayKind = "info") => overlay(doc).show(text, { kind });
 
-function toastReply(text: string, kind: "info" | "success" | "error" = "info") {
-    showToast({ text, variant: toastVariant[kind], duration: kind === "error" ? 5000 : 2500 });
-}
-
-/** Runs an action, reporting failures through ctx.reply; resolves to its release callback if it returned one. */
-async function runAction(action: Action, ctx: ActionContext): Promise<Release | void> {
+/**
+ * Run an action, replying with its error; `prefix` goes before the error.
+ * Resolves to whether it succeeded and, for a holdable action, the release it returned.
+ */
+async function runAction(action: Action, ctx: ActionContext, prefix = ""): Promise<{ ok: boolean; release?: Release; }> {
     try {
-        return await action.run(ctx);
+        return { ok: true, release: await action.run(ctx) ?? undefined };
     } catch (e) {
         // Known failures (missing VcPresets, no stream) get their message; anything else gets logged too.
         if (!(e instanceof PresetsMissing || e instanceof StreamError)) logger.error(`action ${action.id} failed`, e);
-        ctx.reply(e instanceof Error ? e.message : String(e), "error");
+        ctx.reply(prefix + (e instanceof Error ? e.message : String(e)), "error");
+        return { ok: false };
     }
 }
 
@@ -97,38 +100,44 @@ const commands = actions.filter(a => a.command).map(a => ({
 
 const actionMeta = actions.map(a => ({ id: a.id, args: (a.args ?? []).map(arg => arg.name), holdable: a.holdable }));
 let engine: BindingEngine | null = null;
+let detachWindows: (() => void) | undefined;
 
 function reloadBindings(announce = false) {
     engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
     const errors = engine.problems.map(p => `line ${p.line}: ${p.message}`);
     if (errors.length) {
         logger.warn("hotkeys setting:", errors);
-        if (announce) toastReply(`VcActions hotkeys: ${errors[0]}`, "error");
+        if (announce) overlay().show(`VcActions hotkeys: ${errors[0]}`, { kind: "error" });
     }
 }
 
-async function runSteps(steps: Step[]) {
-    for (const step of steps) {
-        await runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply: toastReply });
+/** Run a binding's steps in order, each waiting for the last; the first failure stops the rest and names its step. */
+async function runSteps(steps: Step[], win: Window) {
+    const reply = overlayReply(win.document);
+    for (const [i, step] of steps.entries()) {
+        const prefix = steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "";
+        const ctx: ActionContext = { args: step.args, source: "hotkey", reply };
+        if (!(await runAction(byId.get(step.actionId)!, ctx, prefix)).ok) return;
     }
 }
 
-/** Active holds by trigger: the running step, resolving to its release callback. */
-const holds = new Map<string, Promise<Release | void>>();
+/** Active holds by trigger: the running step, resolving to its release (none if it failed). */
+const holds = new Map<string, Promise<Release | undefined>>();
 
-function hold(trigger: string, step: Step) {
-    holds.set(trigger, runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply: toastReply }));
+function hold(trigger: string, step: Step, win: Window) {
+    const ctx: ActionContext = { args: step.args, source: "hotkey", reply: overlayReply(win.document) };
+    holds.set(trigger, runAction(byId.get(step.actionId)!, ctx).then(r => r.release));
 }
 
-/** Calls a hold's release once its step has finished (a quick tap may let go before the step resolves). */
-async function release(trigger: string) {
+/** Call a hold's release once its step has finished (a quick tap can let go before it resolves). */
+async function release(trigger: string, win?: Window) {
     const pending = holds.get(trigger);
     holds.delete(trigger);
     try {
         await (await pending)?.();
     } catch (e) {
         logger.error(`releasing ${trigger} failed`, e);
-        toastReply(`Release of ${trigger} failed: ${e instanceof Error ? e.message : String(e)}`, "error");
+        if (win) overlayReply(win.document)(`release of ${trigger} failed: ${e instanceof Error ? e.message : String(e)}`, "error");
     }
 }
 
@@ -147,17 +156,17 @@ function toKeyInput(e: KeyboardEvent): KeyInput {
     };
 }
 
-function apply(effects: Effect[], e: Event) {
+function apply(effects: Effect[], e: Event, win: Window) {
     for (const effect of effects) {
         switch (effect.type) {
             case "run":
-                runSteps(effect.steps);
+                runSteps(effect.steps, win);
                 break;
             case "hold":
-                hold(effect.trigger, effect.step);
+                hold(effect.trigger, effect.step, win);
                 break;
             case "release":
-                release(effect.trigger);
+                release(effect.trigger, win);
                 break;
             case "swallow":
                 e.preventDefault();
@@ -167,12 +176,13 @@ function apply(effects: Effect[], e: Event) {
     }
 }
 
-function onKey(e: KeyboardEvent) {
-    if (engine) apply(engine.feed(toKeyInput(e)), e);
+function onKey(e: KeyboardEvent, win: Window) {
+    if (engine) apply(engine.feed(toKeyInput(e)), e, win);
 }
 
-function onBlur(e: FocusEvent) {
-    if (engine) apply(engine.feed({ type: "blur" }), e);
+function onBlur(e: FocusEvent, win: Window) {
+    // Only the window itself losing focus; blur from inner elements doesn't bubble but is seen in capture.
+    if (engine && e.target === win) apply(engine.feed({ type: "blur" }), e, win);
 }
 
 export default definePlugin({
@@ -197,17 +207,14 @@ export default definePlugin({
 
     start() {
         reloadBindings();
-        // Capture phase, so Discord's own handlers don't swallow the combo first.
-        document.addEventListener("keydown", onKey, true);
-        document.addEventListener("keyup", onKey, true);
-        window.addEventListener("blur", onBlur);
+        detachWindows = attachToWindows({ keydown: onKey, keyup: onKey, blur: onBlur });
     },
 
     stop() {
-        document.removeEventListener("keydown", onKey, true);
-        document.removeEventListener("keyup", onKey, true);
-        window.removeEventListener("blur", onBlur);
+        detachWindows?.();
+        detachWindows = undefined;
         for (const trigger of [...holds.keys()]) release(trigger);
+        disposeOverlays();
         engine = null;
     }
 });

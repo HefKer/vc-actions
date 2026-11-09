@@ -36,19 +36,23 @@ ctrl+alt+0 = stopstream
 ctrl+alt+2 = retarget Browser
 ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
+ctrl+alt+g = stream Gaming; popout
 ```
 
-Words after the action id fill its args in order; the last arg takes the rest of the line, so preset names can
-have spaces. `popout` takes a user id. Modifiers: `ctrl`, `alt`, `shift`, `meta`. Letters and digits match by
-physical key, so `ctrl+shift+1` works.
+Grammar: `[hold] <combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
+its args in order; the last arg takes the rest of the step, so preset names can have spaces. `;` always
+separates steps, so args can't contain it. A binding with several steps (a macro) runs them in order, each
+waiting for the previous one to finish; the first failing step stops the rest and its error names the step.
+A bad step (unknown action, empty step) makes the whole line an error. `popout` takes a user id. Modifiers:
+`ctrl`, `alt`, `shift`, `meta`. Letters and digits match by physical key, so `ctrl+shift+1` works. Hotkeys
+fire in the main window and in every Discord pop-out (call or stream pop-outs), whichever is focused; global
+ones belong in niri binds. None are bound by default. Feedback (success, errors) shows in a small overlay at
+the bottom of the window you pressed the key in.
 
 **Hold bindings:** `hold ctrl+alt+m = unmute` runs the action on press and undoes it on release: when the key
 (not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
 ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`);
 anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
-
-Hotkeys only fire while the Vesktop main window is focused; global
-ones belong in niri binds. None are bound by default.
 
 ## Adding an action
 
@@ -68,7 +72,7 @@ ones belong in niri binds. None are bound by default.
    ```
 2. Import it in `actions/index.ts` and add it to the list.
 
-`reply` posts a bot message for slash commands and a toast for hotkeys. Throw an `Error` to report a failure.
+`reply` posts a bot message for slash commands and shows the overlay (in the window the key was pressed in) for hotkeys. Throw an `Error` to report a failure.
 Arg `type: "user"` gives a user picker; `choices: () => string[]` offers values while typing.
 `holdable: true` lets hold bindings use the action: its `run` then returns a release callback that undoes it
 (a slash command or a plain binding just drops it).
@@ -84,6 +88,13 @@ frame name, which Vesktop allows as a Discord pop-out and niri floats.
 - User: `openCallTilePopout(channelId, streamKey)` → `CALL_TILE_POPOUT_WINDOW_OPEN`, a tile's own pop-out.
   Window `DISCORD_CALL_TILE_POPOUT_<channel>_<streamKey>`. Watching a stream that isn't watched yet uses
   Discord's `watchStream` (the `STREAM_WATCH` creator). Auto pop-out uses this path too.
+
+Hotkeys reach pop-outs the way Vencord's theme injection does (`src/api/Themes.ts`): `lib/windows.ts` puts the
+key listeners (capture phase) on the main window and every window in `PopoutWindowStore` (except the game
+overlay), and re-syncs on each store change and each `discordPopoutEvent` "loaded" message, so new pop-outs
+attach, reloaded ones re-attach and closed ones drop off; plugin stop detaches all. Feedback goes through
+`lib/overlay.tsx`, our own box rendered into that window's document, since Discord's toasts only show in the
+main window (ADR 0001).
 
 ## Install
 
@@ -112,4 +123,3 @@ real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks th
   stale or none, type the name: it's still matched.
 - Auto pop-out reacts to every `STREAM_WATCH` of a friend's stream, including Discord re-watching after a
   reconnect; it skips streams already popped out.
-- Hotkeys don't fire inside pop-out windows, only in the main window.
