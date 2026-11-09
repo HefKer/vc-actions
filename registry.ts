@@ -27,6 +27,10 @@ export interface ActionContext {
     win?: Window;
     /** Bindings only: the bindings currently loaded, as written. */
     bindings?: readonly BindingInfo[];
+    /** Bindings only: every action, for the palette. */
+    actions?: readonly Action[];
+    /** Bindings only: run step text (`;` between steps) in `win` as a binding would, for the palette. */
+    runSteps?(text: string): Promise<void>;
 }
 
 export interface Action {

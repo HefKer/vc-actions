@@ -129,7 +129,9 @@ async function runSteps(steps: Step[], win: Window) {
     const reply = overlayReply(win.document);
     for (const [i, step] of steps.entries()) {
         const prefix = steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "";
-        const ctx: ActionContext = { args: step.args, source: "hotkey", reply, win, bindings: engine?.bindings };
+        const ctx: ActionContext = {
+            args: step.args, source: "hotkey", reply, win, bindings: engine?.bindings, actions, runSteps: text => runText(text, win)
+        };
         if (!(await runAction(byId.get(step.actionId)!, ctx, prefix)).ok) return;
     }
 }
@@ -152,6 +154,14 @@ async function release(trigger: string, win?: Window) {
         logger.error(`releasing ${trigger} failed`, e);
         if (win) overlayReply(win.document)(`release of ${trigger} failed: ${e instanceof Error ? e.message : String(e)}`, "error");
     }
+}
+
+/** Run step text (from the palette) in `win` like a binding's steps. */
+async function runText(text: string, win: Window) {
+    const steps = engine?.parseSteps(text);
+    if (!steps) return;
+    if (typeof steps === "string") overlayReply(win.document)(steps, "error");
+    else await runSteps(steps, win);
 }
 
 function toKeyInput(e: KeyboardEvent): KeyInput {

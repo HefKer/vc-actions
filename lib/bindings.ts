@@ -79,6 +79,8 @@ export interface BindingEngine {
     /** The bindings that loaded, as written: trigger text and each step's text. */
     readonly bindings: { trigger: string; steps: string[]; }[];
     feed(event: KeyInput): Effect[];
+    /** Read step text (`;` between steps) as a binding's right side; a string is the error. Used by the palette. */
+    parseSteps(text: string): Step[] | string;
 }
 
 interface Combo {
@@ -250,6 +252,7 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
     return {
         problems,
         bindings: bindings.map(b => ({ trigger: b.trigger, steps: b.steps.map(s => s.text) })),
+        parseSteps: stepText => parseSteps(stepText, byId),
         feed(e) {
             const release = (bs: Binding[]): Effect[] => bs.map(b => {
                 held.delete(b);

@@ -25,6 +25,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
 | `vcleave` | | Leave voice; just says so if you're not in voice |
 | `gotocall` | | Open the call view of your voice channel |
+| `palette` | | Fuzzy command palette in the window you pressed it in (pop-outs too); see [Palette](#palette) |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -52,6 +53,7 @@ ctrl+alt+f = focustile alice
 ctrl+alt+h = help
 ctrl+space p a = popout alice
 ctrl+space s = stream Gaming; popout
+ctrl+alt+space = palette
 ```
 
 Grammar: `[hold] <trigger> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
@@ -78,6 +80,18 @@ Discord's. For a sequence only the leader is checked, once per leader. Discord h
 (not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
 ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`);
 anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
+
+## Palette
+
+Bind it (`ctrl+alt+space = palette`) and every action is a few letters away without its own key. Entries: your
+bindings first, with their trigger shown, then every action once per choice of its first arg (presets, and for
+user args without choices the other people in your voice channel; an entry shows the name but runs the id). An
+action whose first arg has no choices (or none right now, e.g. VcPresets missing), or that has more args after
+the chosen one, takes free text: type it after the words that match the entry (`vol ali +20` runs
+`volume <alice's id> +20`), or press Tab to complete the selected entry first. Matching is fuzzy over labels and
+triggers: the letters in order, case and spaces ignored, word starts and runs ranked higher, ties in list order.
+Up/Down select, Enter runs (a binding's steps as a macro, feedback in the same window), Esc or leaving the box
+closes it and puts focus back. Actions added later appear automatically, with their `choices()`.
 
 ## Names
 
@@ -154,7 +168,7 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`: binding engine, name resolver, Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette ranking, Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 

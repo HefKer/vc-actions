@@ -11,6 +11,7 @@ import focustile from "./focustile";
 import goToCall from "./goToCall";
 import help from "./help";
 import mute from "./mute";
+import palette from "./palette";
 import popout from "./popout";
 import presetNext from "./presetNext";
 import retarget from "./retarget";
@@ -44,4 +45,5 @@ export const actions: Action[] = [
     vcJoin,
     vcLeave,
     goToCall,
+    palette,
 ];
