@@ -5,6 +5,7 @@
  */
 
 import type { Action } from "../registry";
+import help from "./help";
 import popout from "./popout";
 import presetNext from "./presetNext";
 import retarget from "./retarget";
@@ -20,4 +21,5 @@ export const actions: Action[] = [
     streamToggle,
     presetNext,
     popout,
+    help,
 ];

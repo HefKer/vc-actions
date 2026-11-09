@@ -13,6 +13,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `streamtoggle` | | `streamtoggle <preset>`: start streaming with that preset if you're not live; if you are, stop, whatever preset the stream uses |
 | `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
+| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader. Any key closes it; Esc is swallowed |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -33,6 +34,7 @@ ctrl+alt+0 = stopstream
 ctrl+alt+2 = retarget Browser
 ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
+ctrl+alt+h = help
 ```
 
 Words after the action id fill its args in order; the last arg takes the rest of the line, so preset names can

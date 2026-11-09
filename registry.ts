@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import type { BindingInfo } from "./lib/cheatsheet";
+
 /** One argument of an action: a slash-command option, or a word after the action id in a hotkey line. */
 export interface ActionArg {
     name: string;
@@ -21,6 +23,10 @@ export interface ActionContext {
     source: "command" | "hotkey" | "auto";
     /** Report back: a bot message in the channel for commands, our overlay in the pressed-in window for bindings. */
     reply(text: string, kind?: "info" | "success" | "error"): void;
+    /** Bindings only: the window the key was pressed in, pop-outs included. */
+    win?: Window;
+    /** Bindings only: the bindings currently loaded, as written. */
+    bindings?: readonly BindingInfo[];
 }
 
 export interface Action {

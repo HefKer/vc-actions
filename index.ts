@@ -108,7 +108,7 @@ function reloadBindings(announce = false) {
 async function runSteps(steps: Step[], win: Window) {
     const reply = overlayReply(win.document);
     for (const step of steps) {
-        await runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply });
+        await runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply, win, bindings: engine?.bindings });
     }
 }
 
