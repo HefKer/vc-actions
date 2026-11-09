@@ -38,6 +38,12 @@ test("a macro's steps show joined by ;", () => {
     ]);
 });
 
+test("a hold binding shows hold before its combo", () => {
+    assert.deepEqual(groupByLeader([{ trigger: "ctrl+alt+m", steps: ["unmute"], hold: true }]), [
+        { leader: null, rows: [{ keys: "hold ctrl+alt+m", steps: "unmute" }] }
+    ]);
+});
+
 test("no bindings, no groups", () => {
     assert.deepEqual(groupByLeader([]), []);
 });

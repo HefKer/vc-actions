@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import type { BindingInfo } from "./lib/cheatsheet";
+import type { BindingInfo } from "./lib/bindings";
 
 /** One argument of an action: a slash-command option, or a word after the action id in a hotkey line. */
 export interface ActionArg {

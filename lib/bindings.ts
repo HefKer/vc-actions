@@ -73,11 +73,18 @@ export interface Problem {
     message: string;
 }
 
+/** A loaded binding as written: its trigger, each step's text, and whether it's a hold binding. */
+export interface BindingInfo {
+    trigger: string;
+    steps: string[];
+    hold?: boolean;
+}
+
 export interface BindingEngine {
     /** Problems found loading the bindings text; bad lines are skipped. */
     readonly problems: Problem[];
-    /** The bindings that loaded, as written: trigger text and each step's text. */
-    readonly bindings: { trigger: string; steps: string[]; }[];
+    /** The bindings that loaded, as written. */
+    readonly bindings: readonly BindingInfo[];
     feed(event: KeyInput): Effect[];
     /** Read step text (`;` between steps) as a binding's right side; a string is the error. Used by the palette. */
     parseSteps(text: string): Step[] | string;
@@ -251,7 +258,7 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
 
     return {
         problems,
-        bindings: bindings.map(b => ({ trigger: b.trigger, steps: b.steps.map(s => s.text) })),
+        bindings: bindings.map(b => ({ trigger: b.trigger, steps: b.steps.map(s => s.text), ...(b.hold ? { hold: true } : {}) })),
         parseSteps: stepText => parseSteps(stepText, byId),
         feed(e) {
             const release = (bs: Binding[]): Effect[] => bs.map(b => {
