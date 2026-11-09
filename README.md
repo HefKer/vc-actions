@@ -47,6 +47,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `messagemode` | | Pick messages in the channel with the keyboard, in the window you pressed it in, to reply, react or forward (several at once); see [Message mode](#message-mode). Pressed again, it ends |
 | `reply` | | `reply last`: reply to the newest message in the channel you're viewing, like Discord's Reply (it pings the author, unless that's you); the composer gets focus |
 | `react` | | `react <emoji>` reacts to the newest message in the channel you're viewing: `👍`, `thumbsup` or `:thumbsup:`, `<:name:id>`, or a custom emoji's name (see [Names](#names)). Says so if you already reacted with it |
+| `upload` | | Open the file chooser to upload files to the channel shown in the window you pressed it in (pop-outs too), like the composer's **+ → Upload a File**. Picked files land in the composer as attachments, unsent |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.

@@ -38,6 +38,7 @@ import streamtoggle from "./streamtoggle";
 import unmute from "./unmute";
 import unread from "./unread";
 import unwatch from "./unwatch";
+import upload from "./upload";
 import userpick from "./userpick";
 import vcjoin from "./vcjoin";
 import vcleave from "./vcleave";
@@ -84,4 +85,5 @@ export const actions: Action[] = [
     messagemode,
     reply,
     react,
+    upload,
 ];
