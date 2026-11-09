@@ -44,6 +44,9 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `notifmute` | `/notifmute <what>` | `notifmute channel` / `server`: mute the channel you're in (DMs too) or the server you're viewing until you unmute, like its Mute menu item; unmute if it's muted (a timed mute too) |
 | `notifs` | `/notifs <state>` | `notifs on` / `off` / `toggle`: Discord's desktop notifications, the "Enable Desktop Notifications" switch in Settings → Notifications |
 | `inbox` | | Open Discord's notification inbox on its Mentions tab, like Ctrl+I (closes it if it's open) |
+| `messagemode` | | Pick messages in the channel with the keyboard, in the window you pressed it in, to reply, react or forward (several at once); see [Message mode](#message-mode). Pressed again, it ends |
+| `reply` | | `reply last`: reply to the newest message in the channel you're viewing, like Discord's Reply (it pings the author, unless that's you); the composer gets focus |
+| `react` | | `react <emoji>` reacts to the newest message in the channel you're viewing: `👍`, `thumbsup` or `:thumbsup:`, `<:name:id>`, or a custom emoji's name (see [Names](#names)). Says so if you already reacted with it |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -103,6 +106,9 @@ ctrl+space f p = favpick
 ctrl+space d = userpick
 ctrl+space , p = plugins
 ctrl+space , v = pluginsettings VcPresets
+ctrl+space m = messagemode
+ctrl+space r = reply last
+ctrl+space e = react 👍
 ```
 
 Grammar: `[hold] <trigger> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
@@ -198,6 +204,41 @@ picker by server or user id, `QuickActions_uses_favpick`/`_userpick`). Both are 
   name or username, with the username beside it when that differs. Enter opens your DM with them (Discord's
   `openPrivateChannel` creates it for a friend you never messaged). Navigation happens in the main window, as with
   `fav`.
+## Message mode
+
+Bind it (`ctrl+space m = messagemode`): the newest message in the channel shown in that window (pop-outs with a
+chat too) is outlined and scrolled into view, and a hint lists the keys. While it's on, keys without `ctrl`, `alt`
+or `meta` are the mode's and never reach the composer; bindings keep working.
+
+| Key | Does |
+|---|---|
+| `j` / `k` (or Down / Up) | Next newer / older message. A count first moves that many: `3k` |
+| `g` / `G` (or Home / End) | Oldest loaded / newest message |
+| `r` / `R` | Reply, pinging like Discord's Reply (the author, unless that's you) / reply without a ping. The composer gets focus |
+| `e` | Open Discord's reaction picker on the message, as the context menu's Add Reaction does |
+| `space` | Select or unselect the message (green bar), up to 10 |
+| `f` | Forward the selected messages, or the highlighted one if none is selected |
+| `Esc` | Drop a typed count; else clear the selection; else leave |
+
+The mode ends after `r`, `R`, `e` and `f` (the composer, picker or dialog takes the keys from there), on `Esc`,
+when you go to another channel, when the window loses focus, and when you press the binding again. The messages it
+moves through are the ones Discord has loaded and draws, oldest first; Discord loads older ones as the list
+scrolls up, so `g` then `k` reaches further back. A collapsed blocked message isn't drawn, so it's skipped.
+
+**Forwarding several:** `f` with a selection opens Discord's forward dialog, previewing the first selected message
+(an overlay note says all of them go). Pick destinations (Discord allows 5) and an optional message, then Send:
+QuickActions closes the dialog and forwards each selected message, oldest first, to every destination, 1.1 s apart
+(Discord allows about 5 messages per 5 s in a channel), then sends the optional message. Progress and the result
+show in the overlay; failures are logged. At most 10 messages per forward; messages Discord can't forward (system
+messages, ephemeral ones) are skipped. A single message goes through Discord's dialog untouched, as from its
+Forward button.
+
+How: the list is MessageStore's messages for the channel that have a `chat-messages-<channel>-<message>` element
+in that window; the highlight is a `<style>` with id selectors, so it survives Discord re-rendering a message.
+Reply dispatches `CREATE_PENDING_REPLY` and focuses the composer, as the hover toolbar's Reply does; the picker
+opens through `ComponentDispatch`'s `TOGGLE_REACTION_POPOUT` for that message, as the context menu does; forward calls
+Discord's `openForwardModal` (found by code), and for several gives it a `customSendHandler` that sends what its own
+send does: an empty message with a `message_reference` of type forward. `react` uses Discord's own add-reaction.
 
 ## Names
 
@@ -278,12 +319,16 @@ Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: 
 
 Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
 cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking,
+cycling, favorites, sound candidates, voice channels, volume conversion, window tracker, message mode keys, `react`'s emoji arg; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 
 ## Limits
 
 - `focustile` only changes the call view's focus; it doesn't open the call view.
+- Message mode works on the channel's main message list; a thread open in the side panel isn't reachable. The
+  forward dialog is Discord's modal, so from a pop-out it most likely opens in the main window (ADR 0001).
 - Pop-out needs you in a voice channel; a user's stream must be in yours, Discord won't watch it from outside.
 - The `/stream` and `/retarget` preset choices rely on Discord re-reading a built-in command's `choices`; if they show
   stale or none, type the name: it's still matched.

@@ -53,3 +53,6 @@ _Avoid_: pinned server, folder (Discord's server folders are something else)
 **Picker**:
 The fuzzy list `palette`, `favpick` and `userpick` open in the overlay: type to filter, Enter picks, Esc closes. Picks made often and lately rank first (frecency).
 _Avoid_: menu, popup, switcher
+**Message mode**:
+A modal layer over the messages of a channel, entered with `messagemode`: keys move a highlight, select messages and reply, react or forward, instead of typing.
+_Avoid_: selection mode, visual mode
