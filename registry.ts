@@ -8,7 +8,7 @@
 export interface ActionArg {
     name: string;
     description: string;
-    /** "user" becomes a user picker in the slash command; hotkey lines give a user id. */
+    /** "user" becomes a user picker in the slash command; bindings give an id or a name, resolved to an id before run (lib/users.ts). */
     type: "string" | "user";
     required?: boolean;
     /** Values offered while typing the slash command; read every time the option is shown. */

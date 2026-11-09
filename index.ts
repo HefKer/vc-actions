@@ -14,7 +14,9 @@ import { RelationshipStore, showToast, UserStore } from "@webpack/common";
 import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { PresetsMissing } from "./lib/presets";
+import { ResolveError } from "./lib/resolve";
 import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
+import { resolveUserArgs } from "./lib/users";
 import type { Action, ActionArg, ActionContext } from "./registry";
 
 const logger = new Logger("VcActions");
@@ -47,10 +49,11 @@ function toastReply(text: string, kind: "info" | "success" | "error" = "info") {
 
 async function runAction(action: Action, ctx: ActionContext) {
     try {
-        await action.run(ctx);
+        // User args may be names in bindings; slash commands' pickers already give ids, which pass through.
+        await action.run({ ...ctx, args: resolveUserArgs(action, ctx.args) });
     } catch (e) {
-        // Known failures (missing VcPresets, no stream) get their message; anything else gets logged too.
-        if (!(e instanceof PresetsMissing || e instanceof StreamError)) logger.error(`action ${action.id} failed`, e);
+        // Known failures (missing VcPresets, no stream, unknown name) get their message; anything else gets logged too.
+        if (!(e instanceof PresetsMissing || e instanceof StreamError || e instanceof ResolveError)) logger.error(`action ${action.id} failed`, e);
         ctx.reply(e instanceof Error ? e.message : String(e), "error");
     }
 }

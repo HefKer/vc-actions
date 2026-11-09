@@ -15,6 +15,9 @@ export interface Candidate<T> {
     tier?: number;
 }
 
+/** A name that matched nothing, or several; the message lists the candidates. */
+export class ResolveError extends Error { }
+
 export type Resolved<T> = { ok: true; value: T; } | { ok: false; error: string; };
 
 const MAX_LISTED = 15;
