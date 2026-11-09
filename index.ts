@@ -18,6 +18,7 @@ import { loadFavorites } from "./lib/favoriteGuilds";
 import { WhichKeyHint } from "./lib/hint";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
+import { startStreamDnd, stopStreamDnd } from "./lib/status";
 import { resolveUserArgs } from "./lib/users";
 import { startVoiceTracking, stopVoiceTracking } from "./lib/voice";
 import { attachToWindows } from "./lib/windows";
@@ -45,6 +46,11 @@ const settings = definePluginSettings({
     autoPopout: {
         type: OptionType.BOOLEAN,
         description: "Pop out a friend's stream as soon as you start watching it",
+        default: false
+    },
+    dndWhileStreaming: {
+        type: OptionType.BOOLEAN,
+        description: "Set Do Not Disturb while you stream; the previous status comes back when it ends, unless you changed it meanwhile",
         default: false
     }
 });
@@ -249,7 +255,7 @@ export default definePlugin({
     name: "QuickActions",
     description: "Slash commands, in-app hotkeys and a palette for Discord actions: voice and streaming (stream presets via VcPresets, pop-outs), favorite servers, Vencord settings and more",
     authors: [{ name: "hefker", id: 334442905567756288n }],
-    dependencies: ["CommandsAPI"],
+    dependencies: ["CommandsAPI", "UserSettingsAPI"],
     settings,
     commands,
 
@@ -270,6 +276,7 @@ export default definePlugin({
         reloadBindings();
         startVoiceTracking();
         loadFavorites();
+        startStreamDnd(() => !!settings.store.dndWhileStreaming);
         detachWindows = attachToWindows({ keydown: onKey, keyup: onKey, blur: onBlur });
     },
 
@@ -281,6 +288,7 @@ export default definePlugin({
         clearTimeout(announceTimer);
         announced = "";
         stopVoiceTracking();
+        stopStreamDnd();
         for (const trigger of [...holds.keys()]) release(trigger);
         disposeOverlays();
         engine = null;

@@ -30,6 +30,8 @@ import vcjoin from "./vcjoin";
 import vcleave from "./vcleave";
 import volume from "./volume";
 import watch from "./watch";
+import status from "./status";
+import customstatus from "./customstatus";
 
 /** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
@@ -58,4 +60,6 @@ export const actions: Action[] = [
     plugins,
     pluginsettings,
     palette,
+    status,
+    customstatus,
 ];

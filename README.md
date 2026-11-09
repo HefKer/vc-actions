@@ -33,6 +33,8 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `plugins` | | Open Vencord's Plugins page in Discord's settings |
 | `pluginsettings` | | `pluginsettings VcPresets` opens that plugin's settings, like its cog in the Plugins page. Choices (and palette entries) are the enabled plugins; any plugin shown in the Plugins page matches by name |
 | `palette` | | Fuzzy command palette in the window you pressed it in (pop-outs too); see [Palette](#palette) |
+| `status` | `/status <status> [target]` | `status online` / `idle` / `dnd` / `invisible` sets your status. `status toggle dnd` sets dnd, or if you're already dnd, goes back to the status you had before the toggle (online if unknown, e.g. after a restart). Holdable (`hold <combo> = status dnd`): released, the previous status comes back. Setting **DND while streaming** (off by default) sets dnd when you go live and restores the previous status when the stream ends, unless you changed it meanwhile (already dnd or invisible: left alone) |
+| `customstatus` | `/customstatus <text>` | Set your custom status text, no expiry, keeping its emoji. `customstatus clear` clears it; `customstatus \clear` sets the literal text "clear" |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
