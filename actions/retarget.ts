@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { presetNames, presets, PresetsMissing, resolvePreset } from "../lib/presets";
+import { presetNames, presets, PresetsMissing, resolvePreset, setCurrentPreset } from "../lib/presets";
 import { defineAction } from "../registry";
 
 export default defineAction({
@@ -17,6 +17,7 @@ export default defineAction({
         if (typeof p.retarget !== "function") throw new PresetsMissing("This VcPresets build has no retarget(); rebuild it.");
         const name = resolvePreset(args.preset);
         await p.retarget(name);
+        setCurrentPreset(name);
         reply(`Cast target switched to "${name}".`, "success");
     }
 });
