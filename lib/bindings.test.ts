@@ -388,3 +388,36 @@ test("parseSteps reads step text as a binding's right side would be, for the pal
     ]);
     assert.equal(engine.parseSteps("nosuch"), "no action \"nosuch\"");
 });
+
+test("on <event> = steps hooks steps to an event; hooks aren't bindings and no key runs them", () => {
+    const engine = createBindingEngine("on vcjoin = popout\nON  StreamStart = stream Gaming; popout\nctrl+alt+p = popout", actions);
+    assert.deepEqual(engine.problems, []);
+    assert.deepEqual(engine.hooks, [
+        { event: "vcjoin", steps: ["popout"] },
+        { event: "streamstart", steps: ["stream Gaming", "popout"] }
+    ]);
+    assert.deepEqual(engine.hookSteps("streamstart"), [
+        { actionId: "stream", args: { preset: "Gaming" }, text: "stream Gaming" },
+        popoutStep
+    ]);
+    assert.equal(engine.hookSteps("vcleave"), undefined);
+    assert.deepEqual(engine.bindings, [{ trigger: "ctrl+alt+p", steps: ["popout"] }]);
+    assert.deepEqual(engine.feed(down("o")), []);
+});
+
+test("a hook on an unknown event, with bad steps, with hold, or on an event already hooked is an error; the first wins", () => {
+    const engine = createBindingEngine([
+        "on nosuch = popout",
+        "on vcjoin = nosuch",
+        "hold on muted = unmute",
+        "on vcjoin = stopstream",
+        "on vcjoin = popout",
+        "on = popout"
+    ].join("\n"), holdActions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["error", 1], ["error", 2], ["error", 3], ["error", 5], ["error", 6]]);
+    assert.match(engine.problems[0].message, /no event "nosuch".*vcjoin, vcleave/);
+    assert.match(engine.problems[1].message, /nosuch/);
+    assert.match(engine.problems[2].message, /hold/);
+    assert.match(engine.problems[3].message, /line 4/);
+    assert.deepEqual(engine.hooks, [{ event: "vcjoin", steps: ["stopstream"] }]);
+});

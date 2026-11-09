@@ -11,6 +11,8 @@
 
 // @ts-expect-error TS5097: node --test resolves only the real file name; tsc still type-checks the import.
 import { discordDefaults } from "./discordDefaults.ts";
+// @ts-expect-error TS5097: node --test resolves only the real file name; tsc still type-checks the import.
+import { HOOK_EVENTS, type HookEvent, isHookEvent } from "./hooks.ts";
 
 /** What the engine needs to know about an action. */
 export interface ActionMeta {
@@ -80,11 +82,21 @@ export interface BindingInfo {
     hold?: boolean;
 }
 
+/** A loaded event hook (`on vcjoin = gotocall`) as written. */
+export interface HookInfo {
+    event: HookEvent;
+    steps: string[];
+}
+
 export interface BindingEngine {
     /** Problems found loading the bindings text; bad lines are skipped. */
     readonly problems: Problem[];
     /** The bindings that loaded, as written. */
     readonly bindings: readonly BindingInfo[];
+    /** The event hooks that loaded, as written, in setting order. */
+    readonly hooks: readonly HookInfo[];
+    /** The steps hooked to `event`, if any. */
+    hookSteps(event: HookEvent): Step[] | undefined;
     feed(event: KeyInput): Effect[];
     /** Read step text (`;` between steps) as a binding's right side; a string is the error. Used by the palette. */
     parseSteps(text: string): Step[] | string;
@@ -186,10 +198,14 @@ function parseSteps(text: string, byId: Map<string, ActionMeta>): Step[] | strin
     return steps;
 }
 
-/** Build an engine from the bindings text (`[hold] trigger = step` per line, `#` comments) and the known actions. */
+/**
+ * Build an engine from the bindings text and the known actions: `[hold] trigger = step` or `on event = step`
+ * per line, `#` comments.
+ */
 export function createBindingEngine(text: string, actions: ActionMeta[]): BindingEngine {
     const byId = new Map(actions.map(a => [a.id, a]));
     const bindings: Binding[] = [];
+    const hooks = new Map<HookEvent, { line: number; steps: Step[]; }>();
     const problems: Problem[] = [];
     const error = (line: number, message: string) => problems.push({ severity: "error", line, message });
 
@@ -228,6 +244,22 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         let trigger = line.slice(0, eq).trim();
         const hold = /^hold\s/i.test(trigger);
         if (hold) trigger = trigger.slice(4).trim();
+        // No key is named "on" and a sequence needs a modifier, so this never shadows a trigger.
+        const on = /^on(?:\s+(.*))?$/i.exec(trigger);
+        if (on) {
+            if (hold) return error(i + 1, `hold works only on a combo, not on "${trigger}"`);
+            const event = (on[1] ?? "").toLowerCase();
+            if (!isHookEvent(event)) {
+                const events = Object.keys(HOOK_EVENTS).join(", ");
+                return error(i + 1, event ? `no event "${on[1]}"; events: ${events}` : `"on" needs an event: ${events}`);
+            }
+            const steps = parseSteps(line.slice(eq + 1), byId);
+            if (typeof steps === "string") return error(i + 1, steps);
+            const earlier = hooks.get(event);
+            if (earlier) return error(i + 1, `"on ${event}" is already set on line ${earlier.line}, which wins: put all its steps on one line, split by ;`);
+            hooks.set(event, { line: i + 1, steps });
+            return;
+        }
         if (hold && /\s/.test(trigger)) return error(i + 1, `hold works only on a single combo, not "${trigger}"`);
         const keys = trigger.split(/\s+/);
         const parsed = keys.map(parseCombo);
@@ -271,6 +303,8 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
     return {
         problems,
         bindings: bindings.map(b => ({ trigger: b.trigger, steps: b.steps.map(s => s.text), ...(b.hold ? { hold: true } : {}) })),
+        hooks: [...hooks].map(([event, h]) => ({ event, steps: h.steps.map(s => s.text) })),
+        hookSteps: event => hooks.get(event)?.steps,
         parseSteps: stepText => parseSteps(stepText, byId),
         feed(e) {
             const release = (bs: Binding[]): Effect[] => bs.map(b => {
