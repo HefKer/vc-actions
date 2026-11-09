@@ -14,11 +14,12 @@ import { actions } from "./actions";
 import { stopMessageMode } from "./actions/messagemode";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, repeatText, type Step } from "./lib/bindings";
 import { logger, myId } from "./lib/discord";
+import { HotkeysSetting } from "./lib/editor/HotkeysEditor";
 import { UserError } from "./lib/errors";
 import { watchEvents } from "./lib/events";
 import { loadFavorites } from "./lib/favoriteGuilds";
 import { WhichKeyHint } from "./lib/hint";
-import { createHookGuard, HOOK_EVENTS, type HookEvent } from "./lib/hooks";
+import { createHookGuard, type HookEvent } from "./lib/hooks";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { startStreamDnd, stopStreamDnd } from "./lib/status";
 import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
@@ -34,12 +35,16 @@ const byId = new Map(actions.map(a => [a.id, a]));
 
 const settings = definePluginSettings({
     hotkeys: {
-        type: OptionType.STRING,
-        multiline: true,
-        description: "In-app bindings (Vesktop focused), one per line: `[hold] trigger = step; step`. A trigger is a combo (`ctrl+alt+p`) or a sequence of space-separated combos (`ctrl+space p a`); a step is `action args`; `hold` (one combo, one step) undoes the action on release; `prefix = +label` names the group of sequences starting with prefix (`ctrl+space c = +config`). "
-            + `\`on event = step; step\` runs steps when an event fires (${Object.keys(HOOK_EVENTS).join(", ")}). `
-            + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+g = stream Gaming; popout. # starts a comment.`,
-        placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
+        // Stored as the plain text it always was; the component is only the editor (lib/editor).
+        type: OptionType.COMPONENT,
+        component: () => React.createElement(HotkeysSetting, {
+            initial: settings.store.hotkeys ?? "",
+            save: text => {
+                if (settings.store.hotkeys !== text) settings.store.hotkeys = text;
+            },
+            check: text => createBindingEngine(text, actionMeta).problems,
+            actions
+        }),
         // No bindings by default (AGENTS.md).
         default: "",
         // Settings can change while the plugin is stopped; then there's nothing to reload.
