@@ -17,6 +17,7 @@ import help from "./help";
 import inbox from "./inbox";
 import localmute from "./localmute";
 import markread from "./markread";
+import messagemode from "./messagemode";
 import mute from "./mute";
 import notifmute from "./notifmute";
 import notifs from "./notifs";
@@ -25,7 +26,9 @@ import plugins from "./plugins";
 import pluginsettings from "./pluginsettings";
 import popout from "./popout";
 import preset from "./preset";
+import react from "./react";
 import repeat from "./repeat";
+import reply from "./reply";
 import retarget from "./retarget";
 import soundboard from "./soundboard";
 import status from "./status";
@@ -40,9 +43,6 @@ import vcjoin from "./vcjoin";
 import vcleave from "./vcleave";
 import volume from "./volume";
 import watch from "./watch";
-import messagemode from "./messagemode";
-import reply from "./reply";
-import react from "./react";
 
 /** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
