@@ -22,7 +22,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
 | `volume` | `/volume <user> <level>` | `volume alice 80` sets someone's local volume, `+20`/`-20` adjusts it, clamped to 0–200% (100 = normal; VolumeBooster's multiplier raises the ceiling). Holdable: released, the previous volume comes back (hold-to-boost) |
 | `localmute` | | `localmute <user>` toggles someone's local mute (only you stop hearing them) |
-| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader, hold bindings marked `hold`. Any key closes it; Esc is swallowed |
+| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader, hold bindings marked `hold`, then your [event hooks](#event-hooks) under `on event`. Any key closes it; Esc is swallowed |
 | `camera` | | Turn your camera on or off (in a voice channel) |
 | `soundboard` | `/soundboard <sound>` | Play a soundboard sound in your voice channel. Choices: your voice server's sounds, Discord's defaults, then other servers' as `name (Server)` (first 25). The sound list is fetched on first use, like opening the soundboard picker |
 | `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
@@ -103,6 +103,38 @@ Discord's. For a sequence only the leader is checked, once per leader. Discord h
 (not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
 ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`, `volume`);
 anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
+
+## Event hooks
+
+A line `on <event> = <step>[; <step>...]` in the Hotkeys setting runs its steps when the event fires, with the same
+step grammar as a binding (a macro stops at the first failing step):
+
+```
+on vcjoin = gotocall
+on streamstart = popout
+on muted = volume alice 150
+```
+
+| event | fires when |
+|---|---|
+| `vcjoin` | you join a voice channel, or move to another (no `vcleave` then) |
+| `vcleave` | you leave voice |
+| `streamstart` | your own stream (Go Live) starts, however you started it |
+| `streamstop` | your own stream ends |
+| `watchstart` | you start watching someone's stream, once per stream |
+| `watchstop` | you stop watching one |
+| `muted` / `unmuted` | your mic's mute flag changes (deafening alone doesn't count) |
+
+Events are changes of your state as Discord's stores hold it (SelectedChannelStore, ApplicationStreamingStore,
+MediaEngineStore), not raw Flux actions, so nothing fires for the state you're already in when the plugin starts or
+the setting changes, and a no-op (muting while muted) fires nothing. A stream re-watched after a reconnect counts again.
+Steps run in the main window (`source` "auto"); their feedback and errors, named `on <event>:`, show in its overlay.
+One line per event: a second `on` for the same event is an error and the first wins, put all its steps on one line.
+An unknown event, `hold on`, or a bad step is an error too. Hooks only listen while at least one is set.
+
+Hooks can set each other off (`on vcjoin = vcleave` is fine, `on muted = unmute` with `on unmuted = mute` loops).
+Events come back from Discord's stores after a step rather than inside it, so an event that fires while a hook runs,
+or within a second after one finished, counts as caused by it; past 4 hooks deep the next one is skipped with an error.
 
 ## Palette
 
@@ -214,6 +246,7 @@ this repo as `../vencord`. A symlink to the host inside this repo would make sty
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
 Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
+Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking,
 cycling, favorites, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.

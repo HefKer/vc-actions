@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-/** The `help` cheatsheet's layout: the current bindings grouped by leader. Pure, so it's unit tested. */
+/** The `help` cheatsheet's layout: the current bindings grouped by leader, then the event hooks. Pure, so it's unit tested. */
 
-import type { BindingInfo } from "./bindings";
+import type { BindingInfo, HookInfo } from "./bindings";
 
 export interface CheatsheetRow {
     /** The whole trigger for combos (`hold ` first for a hold binding); what follows the leader for sequences. */
@@ -32,3 +32,7 @@ export function groupByLeader(bindings: readonly BindingInfo[]): CheatsheetGroup
     }
     return [...groups].filter(([, rows]) => rows.length).map(([leader, rows]) => ({ leader, rows }));
 }
+
+/** The event hooks as rows, for their own heading after the bindings: the event as keys. */
+export const hookRows = (hooks: readonly HookInfo[]): CheatsheetRow[] =>
+    hooks.map(h => ({ keys: h.event, steps: h.steps.join("; ") }));

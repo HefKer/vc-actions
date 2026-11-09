@@ -4,31 +4,43 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { type CheatsheetGroup, groupByLeader } from "../lib/cheatsheet";
+import { type CheatsheetGroup, type CheatsheetRow, groupByLeader, hookRows } from "../lib/cheatsheet";
 import { overlay } from "../lib/overlay";
 import { defineAction } from "../registry";
 
 const kbd = { fontFamily: "var(--font-code, monospace)", paddingRight: 16, whiteSpace: "nowrap" } as const;
 
-function Cheatsheet({ groups }: { groups: CheatsheetGroup[]; }) {
+function Rows({ rows, indent }: { rows: CheatsheetRow[]; indent: boolean; }) {
+    return (
+        <table style={{ borderCollapse: "collapse", marginLeft: indent ? 12 : 0 }}>
+            <tbody>
+                {rows.map((r, i) => (
+                    <tr key={i}>
+                        <td style={kbd}>{r.keys}</td>
+                        <td>{r.steps}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+}
+
+function Cheatsheet({ groups, hooks }: { groups: CheatsheetGroup[]; hooks: CheatsheetRow[]; }) {
     return (
         <div>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>QuickActions bindings</div>
             {groups.map(g => (
                 <div key={g.leader ?? ""} style={{ marginTop: 6 }}>
                     {g.leader && <div style={{ ...kbd, opacity: 0.7 }}>{g.leader} …</div>}
-                    <table style={{ borderCollapse: "collapse", marginLeft: g.leader ? 12 : 0 }}>
-                        <tbody>
-                            {g.rows.map((r, i) => (
-                                <tr key={i}>
-                                    <td style={kbd}>{r.keys}</td>
-                                    <td>{r.steps}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <Rows rows={g.rows} indent={!!g.leader} />
                 </div>
             ))}
+            {hooks.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                    <div style={{ ...kbd, opacity: 0.7 }}>on event</div>
+                    <Rows rows={hooks} indent />
+                </div>
+            )}
             <div style={{ marginTop: 6, opacity: 0.6, fontSize: 12 }}>Any key closes</div>
         </div>
     );
@@ -36,10 +48,11 @@ function Cheatsheet({ groups }: { groups: CheatsheetGroup[]; }) {
 
 export default defineAction({
     id: "help",
-    description: "Show a cheatsheet of the current bindings, grouped by leader, until the next key",
-    run({ win = window, bindings = [], reply }) {
-        if (!bindings.length) return reply("No bindings set.");
-        const hide = overlay(win.document, "panel").show(<Cheatsheet groups={groupByLeader(bindings)} />, { duration: null });
+    description: "Show a cheatsheet of the current bindings, grouped by leader, and event hooks, until the next key",
+    run({ win = window, bindings = [], hooks = [], reply }) {
+        if (!bindings.length && !hooks.length) return reply("No bindings set.");
+        const sheet = <Cheatsheet groups={groupByLeader(bindings)} hooks={hookRows(hooks)} />;
+        const hide = overlay(win.document, "panel").show(sheet, { duration: null });
         // Added while the help key is being dispatched on this same target, so that key doesn't close it.
         const onKey = (e: KeyboardEvent) => {
             win.removeEventListener("keydown", onKey, true);

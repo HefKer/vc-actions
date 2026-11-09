@@ -14,8 +14,10 @@ import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { logger, myId } from "./lib/discord";
 import { UserError } from "./lib/errors";
+import { watchEvents } from "./lib/events";
 import { loadFavorites } from "./lib/favoriteGuilds";
 import { WhichKeyHint } from "./lib/hint";
+import { createHookGuard, type HookEvent } from "./lib/hooks";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
 import { startStreamDnd, stopStreamDnd } from "./lib/status";
@@ -34,6 +36,7 @@ const settings = definePluginSettings({
         type: OptionType.STRING,
         multiline: true,
         description: "In-app bindings (Vesktop focused), one per line: `[hold] trigger = step; step`. A trigger is a combo (`ctrl+alt+p`) or a sequence of space-separated combos (`ctrl+space p a`); a step is `action args`; `hold` (one combo, one step) undoes the action on release. "
+            + "`on event = step; step` runs steps when an event fires (vcjoin, vcleave, streamstart, streamstop, watchstart, watchstop, muted, unmuted). "
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+g = stream Gaming; popout. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         // No bindings by default (AGENTS.md).
@@ -136,6 +139,9 @@ function reloadBindings(delay = 0) {
     // The new engine doesn't know the old one's holds, so their keyup would never release them: let go now.
     for (const trigger of [...holds.keys()]) release(trigger);
     engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
+    // Only listen while some hook wants an event; resubscribing also rereads the state events are diffed against.
+    stopEvents?.();
+    stopEvents = engine.hooks.length ? watchEvents(onEvent) : undefined;
     const { problems } = engine;
     clearTimeout(announceTimer);
     announceTimer = setTimeout(() => {
@@ -150,13 +156,16 @@ function reloadBindings(delay = 0) {
     }, delay);
 }
 
-/** Run a binding's steps in order, each waiting for the last; the first failure stops the rest and names its step. */
-async function runSteps(steps: Step[], win: Window) {
+/**
+ * Run a binding's steps in order, each waiting for the last; the first failure stops the rest and names its step.
+ * `label` goes before errors (which hook failed).
+ */
+async function runSteps(steps: Step[], win: Window, source: "hotkey" | "auto" = "hotkey", label = "") {
     const reply = overlayReply(win.document);
     for (const [i, step] of steps.entries()) {
-        const prefix = steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "";
+        const prefix = label + (steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "");
         const ctx: ActionContext = {
-            args: step.args, source: "hotkey", reply, win, bindings: engine?.bindings, actions, runSteps: text => runText(text, win)
+            args: step.args, source, reply, win, bindings: engine?.bindings, hooks: engine?.hooks, actions, runSteps: text => runText(text, win)
         };
         if (!(await runAction(byId.get(step.actionId)!, ctx, prefix)).ok) return;
     }
@@ -188,6 +197,29 @@ async function runText(text: string, win: Window) {
     if (!steps) return;
     if (typeof steps === "string") overlayReply(win.document)(steps, "error");
     else await runSteps(steps, win);
+}
+
+/** Hooks set off by hooks go at most this deep (`on muted = unmute` + `on unmuted = mute` would loop). */
+const MAX_HOOK_DEPTH = 4;
+/** An event this long after a hook's steps finished still counts as caused by it. */
+const HOOK_SETTLE = 1000;
+let hookGuard = createHookGuard(MAX_HOOK_DEPTH, HOOK_SETTLE);
+let stopEvents: (() => void) | undefined;
+
+/** An event fired: run its hook in the main window (`source` "auto"), errors in the main window's overlay. */
+function onEvent(event: HookEvent) {
+    const steps = engine?.hookSteps(event);
+    if (!steps) return;
+    const run = hookGuard.start(Date.now());
+    if (!run) {
+        logger.warn(`on ${event}: skipped, hooks set each other off more than ${MAX_HOOK_DEPTH} deep`);
+        overlayReply(document)(`on ${event} skipped: hooks set each other off more than ${MAX_HOOK_DEPTH} deep (a loop?)`, "error");
+        return;
+    }
+    // Events come from store change listeners, inside Discord's dispatch: let it finish before a step dispatches.
+    setTimeout(() => {
+        runSteps(steps, window, "auto", `on ${event}: `).finally(() => run.done(Date.now()));
+    });
 }
 
 function toKeyInput(e: KeyboardEvent): KeyInput {
@@ -287,6 +319,9 @@ export default definePlugin({
         hideHint = undefined;
         clearTimeout(announceTimer);
         announced = "";
+        stopEvents?.();
+        stopEvents = undefined;
+        hookGuard = createHookGuard(MAX_HOOK_DEPTH, HOOK_SETTLE);
         stopVoiceTracking();
         stopStreamDnd();
         for (const trigger of [...holds.keys()]) release(trigger);

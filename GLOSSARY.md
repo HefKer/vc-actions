@@ -42,6 +42,10 @@ _Avoid_: push-to-X binding, keyup binding
 **Holdable**:
 Said of an action that knows how to undo itself on release, which is the only kind a hold binding accepts.
 
+**Hook**:
+A line `on <event> = <step>` of the hotkeys setting: steps run when the event fires (you join voice, go live...), not on a key.
+_Avoid_: trigger (that's the keys of a binding), listener, event binding
+
 **Favorite server**:
 A server added with `favtoggle`, for `fav` to jump to and cycle through; kept by this plugin, not Discord.
 _Avoid_: pinned server, folder (Discord's server folders are something else)

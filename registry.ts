@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import type { BindingInfo } from "./lib/bindings";
+import type { BindingInfo, HookInfo } from "./lib/bindings";
 
 /** One argument of an action: a slash-command option, or a word after the action id in a binding's step. */
 export interface ActionArg {
@@ -20,6 +20,7 @@ export interface ActionArg {
 export interface ActionContext {
     /** Argument values by name; missing ones are undefined. */
     args: Record<string, string | undefined>;
+    /** "auto": an event hook (`on vcjoin = ...`) ran it; it then has the bindings-only fields, `win` being the main window. */
     source: "command" | "hotkey" | "auto";
     /** Report back: a bot message in the channel for commands, our overlay in the pressed-in window for bindings. */
     reply(text: string, kind?: "info" | "success" | "error"): void;
@@ -27,6 +28,8 @@ export interface ActionContext {
     win?: Window;
     /** Bindings only: the bindings currently loaded, as written. */
     bindings?: readonly BindingInfo[];
+    /** Bindings only: the event hooks currently loaded, as written. */
+    hooks?: readonly HookInfo[];
     /** Bindings only: every action, for the palette. */
     actions?: readonly Action[];
     /** Bindings only: run step text (`;` between steps) in `win` as a binding would, for the palette. */

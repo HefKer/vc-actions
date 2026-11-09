@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 // @ts-expect-error TS5097: node --test resolves only the real file name; tsc still type-checks the import.
-import { groupByLeader } from "./cheatsheet.ts";
+import { groupByLeader, hookRows } from "./cheatsheet.ts";
 
 test("combo bindings form one group with no leader, in setting order", () => {
     assert.deepEqual(groupByLeader([
@@ -46,4 +46,14 @@ test("a hold binding shows hold before its combo", () => {
 
 test("no bindings, no groups", () => {
     assert.deepEqual(groupByLeader([]), []);
+});
+
+test("hooks become rows keyed by their event, steps joined by ;", () => {
+    assert.deepEqual(hookRows([
+        { event: "vcjoin", steps: ["gotocall"] },
+        { event: "streamstart", steps: ["popout", "watch next"] }
+    ]), [
+        { keys: "vcjoin", steps: "gotocall" },
+        { keys: "streamstart", steps: "popout; watch next" }
+    ]);
 });
