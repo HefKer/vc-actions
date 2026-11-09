@@ -5,9 +5,11 @@
  */
 
 import type { Action } from "../registry";
+import camera from "./camera";
 import popout from "./popout";
 import presetNext from "./presetNext";
 import retarget from "./retarget";
+import soundboard from "./soundboard";
 import stopStream from "./stopStream";
 import stream from "./stream";
 import streamToggle from "./streamToggle";
@@ -20,4 +22,6 @@ export const actions: Action[] = [
     streamToggle,
     presetNext,
     popout,
+    camera,
+    soundboard,
 ];

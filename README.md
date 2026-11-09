@@ -13,6 +13,8 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `streamtoggle` | | `streamtoggle <preset>`: start streaming with that preset if you're not live; if you are, stop, whatever preset the stream uses |
 | `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
+| `camera` | | Turn your camera on or off (in a voice channel) |
+| `soundboard` | `/soundboard <sound>` | Play a soundboard sound in your voice channel. Choices: your voice server's sounds, Discord's defaults, then other servers' as `name (Server)` (first 25). The sound list is fetched on first use, like opening the soundboard picker |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -53,11 +55,12 @@ Discord's. Discord has no readable list of its shortcuts, so they're hard-coded 
 
 ## Names
 
-Presets and users (and later voice channels and sounds) are matched by name the same way: exactly, then
+Presets, users and sounds (and later voice channels) are matched by name the same way: exactly, then
 case-insensitively, then by unique prefix; a prefix shared by several, or no match, is an error that lists the
 candidates. A user in a binding is an id (or `<@id>`) or a name: nickname, friend nickname, display name or
 username, matched against the people in your voice channel first, then your friends, so an exact friend name
-still beats an in-call prefix (`ctrl+alt+a = popout alice`).
+still beats an in-call prefix (`ctrl+alt+a = popout alice`). A sound matches your voice channel's server's
+sounds first, then Discord's defaults, then other servers' (also as `name (Server)`).
 
 ## Adding an action
 
@@ -126,3 +129,6 @@ real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks th
   stale or none, type the name: it's still matched.
 - Auto pop-out reacts to every `STREAM_WATCH` of a friend's stream, including Discord re-watching after a
   reconnect; it skips streams already popped out.
+- Camera and soundboard use Discord's own `setVideoEnabled` and soundboard play/fetch/lock-check functions, found by
+  code at runtime; a Discord update can move them. A sound you can't use (another server's without Nitro, or the
+  channel forbids it) is refused before playing, since Discord would play it only for you.
