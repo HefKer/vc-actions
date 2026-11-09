@@ -42,7 +42,13 @@ export interface Action {
     command?: string;
     /** Hotkey line suggested in the settings default, e.g. "ctrl+alt+p". Keep clear of Discord's own binds. */
     defaultHotkey?: string;
-    run(ctx: ActionContext): void | Promise<void>;
+    /** Its run returns a Release, so `hold <combo> = <id>` bindings may use it. */
+    holdable?: boolean;
+    /** A holdable action returns how to undo itself; the release of a hold binding calls it. */
+    run(ctx: ActionContext): void | Release | Promise<void | Release>;
 }
+
+/** Undoes what a holdable action did, e.g. restores the previous mute state. */
+export type Release = () => void | Promise<void>;
 
 export const defineAction = (a: Action) => a;
