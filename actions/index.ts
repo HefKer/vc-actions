@@ -9,6 +9,7 @@ import camera from "./camera";
 import channelpick from "./channelpick";
 import customstatus from "./customstatus";
 import deafen from "./deafen";
+import edit from "./edit";
 import fav from "./fav";
 import favpick from "./favpick";
 import favtoggle from "./favtoggle";
@@ -34,6 +35,7 @@ import reply from "./reply";
 import retarget from "./retarget";
 import search from "./search";
 import serverpick from "./serverpick";
+import scroll from "./scroll";
 import soundboard from "./soundboard";
 import soundpick from "./soundpick";
 import status from "./status";
@@ -98,4 +100,6 @@ export const actions: Action[] = [
     vcpick,
     soundpick,
     presetpick,
+    edit,
+    scroll,
 ];
