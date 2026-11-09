@@ -17,7 +17,7 @@ import { UserError } from "./lib/errors";
 import { watchEvents } from "./lib/events";
 import { loadFavorites } from "./lib/favoriteGuilds";
 import { WhichKeyHint } from "./lib/hint";
-import { createHookGuard, type HookEvent } from "./lib/hooks";
+import { createHookGuard, HOOK_EVENTS, type HookEvent } from "./lib/hooks";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
 import { startStreamDnd, stopStreamDnd } from "./lib/status";
@@ -36,7 +36,7 @@ const settings = definePluginSettings({
         type: OptionType.STRING,
         multiline: true,
         description: "In-app bindings (Vesktop focused), one per line: `[hold] trigger = step; step`. A trigger is a combo (`ctrl+alt+p`) or a sequence of space-separated combos (`ctrl+space p a`); a step is `action args`; `hold` (one combo, one step) undoes the action on release. "
-            + "`on event = step; step` runs steps when an event fires (vcjoin, vcleave, streamstart, streamstop, watchstart, watchstop, muted, unmuted). "
+            + `\`on event = step; step\` runs steps when an event fires (${Object.keys(HOOK_EVENTS).join(", ")}). `
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+g = stream Gaming; popout. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         // No bindings by default (AGENTS.md).
@@ -230,7 +230,7 @@ function onEvent(event: HookEvent) {
         overlayReply(document)(`on ${event} skipped: hooks set each other off more than ${MAX_HOOK_DEPTH} deep (a loop?)`, "error");
         return;
     }
-    // Events come from store change listeners, inside Discord's dispatch: let it finish before a step dispatches.
+    // Events come from store change listeners, which may run inside Discord's dispatch: let it finish before a step dispatches.
     setTimeout(() => {
         runSteps(steps, window, "auto", `on ${event}: `).finally(() => run.done(Date.now()));
     });
