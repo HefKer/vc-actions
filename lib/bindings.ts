@@ -173,6 +173,14 @@ function eventKey(e: { key: string; code: string; }): string {
     return e.key.toLowerCase();
 }
 
+/**
+ * What `repeat` should run again after these steps ran: their text, `;` between steps, or undefined when one of
+ * them is `repeat` itself, so it never records itself and the run before stays the one repeated.
+ */
+export function repeatText(steps: readonly Step[]): string | undefined {
+    return steps.some(s => s.actionId === "repeat") ? undefined : steps.map(s => s.text).join("; ");
+}
+
 /** Spread the words after the action id over its args; the last arg takes the remainder. */
 function splitArgs(rest: string, names: string[]): Record<string, string | undefined> {
     const words = rest ? rest.split(/\s+/) : [];

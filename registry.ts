@@ -34,6 +34,8 @@ export interface ActionContext {
     actions?: readonly Action[];
     /** Bindings only: run step text (`;` between steps) in `win` as a binding would, for the palette. */
     runSteps?(text: string): Promise<void>;
+    /** Bindings only: the step text the last binding or palette pick ran (`;` between steps), for `repeat`. */
+    lastRun?: string;
 }
 
 export interface Action {

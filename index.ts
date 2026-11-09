@@ -11,7 +11,7 @@ import { CommandOption } from "@vencord/discord-types";
 import { React, RelationshipStore } from "@webpack/common";
 
 import { actions } from "./actions";
-import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
+import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, repeatText, type Step } from "./lib/bindings";
 import { logger, myId } from "./lib/discord";
 import { UserError } from "./lib/errors";
 import { watchEvents } from "./lib/events";
@@ -165,7 +165,7 @@ async function runSteps(steps: Step[], win: Window, source: "hotkey" | "auto" = 
     for (const [i, step] of steps.entries()) {
         const prefix = label + (steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "");
         const ctx: ActionContext = {
-            args: step.args, source, reply, win, bindings: engine?.bindings, hooks: engine?.hooks, actions, runSteps: text => runText(text, win)
+            args: step.args, source, reply, win, bindings: engine?.bindings, hooks: engine?.hooks, actions, runSteps: text => runText(text, win), lastRun
         };
         if (!(await runAction(byId.get(step.actionId)!, ctx, prefix)).ok) return;
     }
@@ -191,12 +191,26 @@ async function release(trigger: string, win?: Window) {
     }
 }
 
-/** Run step text (from the palette) in `win` like a binding's steps. */
+/**
+ * What `repeat` runs again: the steps of the last binding run or palette pick. Hold bindings (nothing to let go
+ * of), hooks (not something you did) and slash commands (no window) aren't kept; neither is a run with `repeat` in it.
+ */
+let lastRun: string | undefined;
+
+function remember(steps: Step[]) {
+    lastRun = repeatText(steps) ?? lastRun;
+}
+
+/** Run step text (from the palette or `repeat`) in `win` like a binding's steps. */
 async function runText(text: string, win: Window) {
     const steps = engine?.parseSteps(text);
     if (!steps) return;
-    if (typeof steps === "string") overlayReply(win.document)(steps, "error");
-    else await runSteps(steps, win);
+    if (typeof steps === "string") {
+        overlayReply(win.document)(steps, "error");
+        return;
+    }
+    remember(steps);
+    await runSteps(steps, win);
 }
 
 /** Hooks set off by hooks go at most this deep (`on muted = unmute` + `on unmuted = mute` would loop). */
@@ -250,6 +264,7 @@ function apply(effects: Effect[], e: Event, win: Window) {
         switch (effect.type) {
             case "run":
                 endHint();
+                remember(effect.steps);
                 runSteps(effect.steps, win);
                 break;
             case "hint":
@@ -321,6 +336,7 @@ export default definePlugin({
         announced = "";
         stopEvents?.();
         stopEvents = undefined;
+        lastRun = undefined;
         hookGuard = createHookGuard(MAX_HOOK_DEPTH, HOOK_SETTLE);
         stopVoiceTracking();
         stopStreamDnd();

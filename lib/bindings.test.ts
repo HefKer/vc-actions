@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 // @ts-expect-error TS5097: node --test resolves only the real file name; tsc still type-checks the import.
-import { type ActionMeta, createBindingEngine, type KeyInput } from "./bindings.ts";
+import { type ActionMeta, createBindingEngine, type KeyInput, repeatText } from "./bindings.ts";
 
 const actions: ActionMeta[] = [
     { id: "popout", args: ["user"] },
@@ -420,4 +420,12 @@ test("a hook on an unknown event, with bad steps, with hold, or on an event alre
     assert.match(engine.problems[2].message, /hold/);
     assert.match(engine.problems[3].message, /line 4/);
     assert.deepEqual(engine.hooks, [{ event: "vcjoin", steps: ["stopstream"] }]);
+});
+
+test("repeatText gives the steps' text back for repeat, and nothing when they contain repeat", () => {
+    const engine = createBindingEngine("", [...actions, { id: "repeat", args: [] }]);
+    const steps = (text: string) => engine.parseSteps(text) as Exclude<ReturnType<typeof engine.parseSteps>, string>;
+    assert.equal(repeatText(steps("stream  Gaming Night ;popout")), "stream  Gaming Night; popout");
+    assert.equal(repeatText(steps("repeat")), undefined);
+    assert.equal(repeatText(steps("popout; repeat")), undefined);
 });

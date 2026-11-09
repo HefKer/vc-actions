@@ -20,6 +20,7 @@ import plugins from "./plugins";
 import pluginsettings from "./pluginsettings";
 import popout from "./popout";
 import preset from "./preset";
+import repeat from "./repeat";
 import retarget from "./retarget";
 import soundboard from "./soundboard";
 import stopstream from "./stopstream";
@@ -66,4 +67,5 @@ export const actions: Action[] = [
     customstatus,
     favpick,
     userpick,
+    repeat,
 ];

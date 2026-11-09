@@ -37,6 +37,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `customstatus` | `/customstatus <text>` | Set your custom status text, no expiry, keeping its emoji. `customstatus clear` clears it; `customstatus \clear` sets the literal text "clear" |
 | `favpick` | | Fuzzy-pick one of your favorite servers (see `favtoggle`) and go there; the palette's picker, in the window you pressed it in. See [Pickers](#pickers) |
 | `userpick` | | Fuzzy-pick someone from your DMs and friends and open your DM with them; see [Pickers](#pickers) |
+| `repeat` | | Run again, in the window you pressed it in, the steps the last binding or palette pick ran (a whole macro, args as typed, so names are matched again). Not kept: hold bindings, [event hooks](#event-hooks), slash commands (no window to run in), and any run with `repeat` in it, so `repeat` never repeats itself. Opening the palette counts as a run until you pick something; left out of the palette, where it would only reopen it. Forgotten when the plugin stops |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
