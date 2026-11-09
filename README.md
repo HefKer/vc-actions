@@ -53,7 +53,6 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `vcpick` | | Fuzzy-pick a voice channel, showing who's in it, and join it; Shift+Enter just opens its view. See [Pickers](#pickers) |
 | `soundpick` | | Fuzzy-pick a soundboard sound and play it in your voice channel, like `soundboard`; see [Pickers](#pickers) |
 | `presetpick` | | Fuzzy-pick a VcPresets preset: not live, stream with it like `stream`; live, retarget to it like `retarget`. See [Pickers](#pickers) |
-| `upload` | | Open the file chooser to upload files to the channel shown in the window you pressed it in (pop-outs too), like the composer's **+ → Upload a File**. Picked files land in the composer as attachments, unsent |
 | `edit` | | `edit last`: edit your newest message in the channel shown in the window you pressed it in, like Up in an empty message box (Discord's inline editor opens). Says so if there's none |
 | `scroll` | | `scroll top` / `bottom` / `unread`: scroll the channel shown in the window you pressed it in to its first message, its newest, or its first unread one like the new-messages bar's jump. Loaded messages are scrolled to; otherwise Discord's jump loads them. "No unread messages here." when there's none |
 
@@ -403,8 +402,6 @@ this repo as `../vencord`. A symlink to the host inside this repo would make sty
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
 Unit tests (pure modules in `lib/`: binding engine, event hooks, setting editor's colouring and autocomplete, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates, channel/server/voice picker rows and sidebar order,
-cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker, message mode keys, `react`'s emoji arg; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
-Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
 cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker, message mode keys, search and labels, message mode scrolling and hint placement, `react`'s emoji arg; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
