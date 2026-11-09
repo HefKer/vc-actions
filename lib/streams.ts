@@ -84,6 +84,9 @@ export function popOutCall() {
     }
 }
 
+/** Whether you're streaming (Go Live) right now, whoever started it. */
+export const isLive = () => ApplicationStreamingStore.getCurrentUserActiveStream() != null;
+
 function myVoiceChannel(): string {
     const id = SelectedChannelStore.getVoiceChannelId();
     if (!id) throw new StreamError("You're not in a voice channel.");

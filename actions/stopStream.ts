@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { presets } from "../lib/presets";
+import { presets, setCurrentPreset } from "../lib/presets";
 import { defineAction } from "../registry";
 
 export default defineAction({
@@ -13,6 +13,7 @@ export default defineAction({
     description: "Stop your stream",
     run({ reply }) {
         presets().stopStream();
+        setCurrentPreset(null);
         reply("Stream stopped.", "success");
     }
 });
