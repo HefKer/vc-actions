@@ -96,14 +96,23 @@ export function replyTo(message: Message, mention: boolean) {
 }
 
 /**
- * Open Discord's reaction emoji picker on `message`, like the context menu's Add Reaction. The message must be drawn:
- * its own component listens for this.
+ * Open Discord's reaction emoji picker on `message`, like the context menu's Add Reaction or Discord's own `e` on a
+ * keyboard-focused message. The picker is anchored in the message's hover toolbar, which Discord only renders while
+ * the message is hovered, focused or in a context menu, so the message's element (in `doc`) gets focus first and the
+ * picker opens a frame later, once the toolbar is drawn.
  */
-export function openReactionPicker(message: Message) {
+export function openReactionPicker(message: Message, doc: Document) {
     const channel = channelOf(message);
     if (channel.guild_id && !PermissionStore.can(PermissionsBits.ADD_REACTIONS, channel))
         throw new UserError("You can't add reactions here.");
-    ComponentDispatch.dispatchKeyed("TOGGLE_REACTION_POPOUT", message.id, { emojiPicker: true });
+    const el = messageElement(doc, channel.id, message.id);
+    if (!el) throw new UserError("That message isn't shown.");
+    // Discord's list navigation focuses the message's inner [data-list-item-id] (tabindex -1), not the <li>.
+    const target = el.querySelector<HTMLElement>("[data-list-item-id]") ?? el;
+    target.focus({ preventScroll: true });
+    const win = doc.defaultView ?? window;
+    win.requestAnimationFrame(() => win.requestAnimationFrame(() =>
+        ComponentDispatch.dispatchKeyed("TOGGLE_REACTION_POPOUT", message.id, { emojiPicker: true })));
 }
 
 /** An emoji as reactions take it. */

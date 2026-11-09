@@ -151,7 +151,7 @@ function enter(win: Window, reply: ActionContext["reply"]) {
                     // The composer or the picker takes the keys from here on.
                     end();
                     if (command.type === "reply") replyTo(msg, command.mention);
-                    else openReactionPicker(msg);
+                    else openReactionPicker(msg, doc);
                     return;
                 }
                 case "forward": {
