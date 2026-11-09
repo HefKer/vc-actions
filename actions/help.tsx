@@ -5,14 +5,15 @@
  */
 
 import { type CheatsheetGroup, type CheatsheetRow, groupByLeader, hookRows } from "../lib/cheatsheet";
+import { GroupName } from "../lib/hint";
 import { overlay } from "../lib/overlay";
 import { defineAction } from "../registry";
 
 const kbd = { fontFamily: "var(--font-code, monospace)", paddingRight: 16, whiteSpace: "nowrap" } as const;
 
-function Rows({ rows, indent }: { rows: CheatsheetRow[]; indent: boolean; }) {
+function Rows({ rows, indent }: { rows: CheatsheetRow[]; indent: number; }) {
     return (
-        <table style={{ borderCollapse: "collapse", marginLeft: indent ? 12 : 0 }}>
+        <table style={{ borderCollapse: "collapse", marginLeft: indent }}>
             <tbody>
                 {rows.map((r, i) => (
                     <tr key={i}>
@@ -31,14 +32,28 @@ function Cheatsheet({ groups, hooks }: { groups: CheatsheetGroup[]; hooks: Cheat
             <div style={{ fontWeight: 700, marginBottom: 4 }}>QuickActions bindings</div>
             {groups.map(g => (
                 <div key={g.leader ?? ""} style={{ marginTop: 6 }}>
-                    {g.leader && <div style={{ ...kbd, opacity: 0.7 }}>{g.leader} …</div>}
-                    <Rows rows={g.rows} indent={!!g.leader} />
+                    {g.leader && (
+                        <div>
+                            <span style={{ ...kbd, opacity: 0.7 }}>{g.leader} …</span>
+                            {g.label && <GroupName group={g.label} />}
+                        </div>
+                    )}
+                    {g.rows.length > 0 && <Rows rows={g.rows} indent={g.leader ? 12 : 0} />}
+                    {g.sections.map(s => (
+                        <div key={s.keys} style={{ marginLeft: 12, marginTop: 2 }}>
+                            <div>
+                                <span style={{ ...kbd, opacity: 0.7 }}>{s.keys}</span>
+                                <GroupName group={s.label} />
+                            </div>
+                            <Rows rows={s.rows} indent={12} />
+                        </div>
+                    ))}
                 </div>
             ))}
             {hooks.length > 0 && (
                 <div style={{ marginTop: 6 }}>
                     <div style={{ ...kbd, opacity: 0.7 }}>on event</div>
-                    <Rows rows={hooks} indent />
+                    <Rows rows={hooks} indent={12} />
                 </div>
             )}
             <div style={{ marginTop: 6, opacity: 0.6, fontSize: 12 }}>Any key closes</div>
@@ -48,7 +63,7 @@ function Cheatsheet({ groups, hooks }: { groups: CheatsheetGroup[]; hooks: Cheat
 
 export default defineAction({
     id: "help",
-    description: "Show a cheatsheet of the current bindings, grouped by leader, and event hooks, until the next key",
+    description: "Show a cheatsheet of the current bindings, grouped by leader and group label, and event hooks, until the next key",
     run({ win = window, bindings = [], hooks = [], reply }) {
         if (!bindings.length && !hooks.length) return reply("No bindings set.");
         const sheet = <Cheatsheet groups={groupByLeader(bindings)} hooks={hookRows(hooks)} />;

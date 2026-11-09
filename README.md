@@ -22,7 +22,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
 | `volume` | `/volume <user> <level>` | `volume alice 80` sets someone's local volume, `+20`/`-20` adjusts it, clamped to 0–200% (100 = normal; VolumeBooster's multiplier raises the ceiling). Holdable: released, the previous volume comes back (hold-to-boost) |
 | `localmute` | | `localmute <user>` toggles someone's local mute (only you stop hearing them) |
-| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader, hold bindings marked `hold`, then your [event hooks](#event-hooks) under `on event`. Any key closes it; Esc is swallowed |
+| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader and, within it, under their [group](#hotkeys) label, hold bindings marked `hold`, then your [event hooks](#event-hooks) under `on event`. Any key closes it; Esc is swallowed |
 | `camera` | | Turn your camera on or off (in a voice channel) |
 | `soundboard` | `/soundboard <sound>` | Play a soundboard sound in your voice channel. Choices: your voice server's sounds, Discord's defaults, then other servers' as `name (Server)` (first 25). The sound list is fetched on first use, like opening the soundboard picker |
 | `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
