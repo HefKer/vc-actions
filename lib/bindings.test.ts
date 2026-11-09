@@ -122,3 +122,11 @@ test("bad lines are reported as errors with their line and skipped; good lines s
     assert.deepEqual(engine.feed(down("ctrl+alt+p")), []);
     assert.equal(engine.feed(down("ctrl+alt+0"))[0].type, "run");
 });
+
+test("bindings lists the loaded bindings as written, bad lines left out", () => {
+    const engine = createBindingEngine("ctrl+alt+p = popout\nctrl+alt+n = nosuch\nctrl+alt+1 = stream Gaming  # comment", actions);
+    assert.deepEqual(engine.bindings, [
+        { trigger: "ctrl+alt+p", steps: ["popout"] },
+        { trigger: "ctrl+alt+1", steps: ["stream Gaming"] }
+    ]);
+});

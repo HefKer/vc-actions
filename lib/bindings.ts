@@ -56,6 +56,8 @@ export interface Problem {
 export interface BindingEngine {
     /** Problems found loading the bindings text; bad lines are skipped. */
     readonly problems: Problem[];
+    /** The bindings that loaded, as written: trigger text and each step's text. */
+    readonly bindings: { trigger: string; steps: string[]; }[];
     feed(event: KeyInput): Effect[];
 }
 
@@ -138,6 +140,7 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
 
     return {
         problems,
+        bindings: bindings.map(b => ({ trigger: b.trigger, steps: b.steps.map(s => s.text) })),
         feed(e) {
             if (e.type !== "keydown" || e.repeat) return [];
             const key = eventKey(e);
