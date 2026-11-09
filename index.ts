@@ -109,11 +109,12 @@ let detachWindows: (() => void) | undefined;
 
 function reloadBindings(announce = false) {
     engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
-    const errors = engine.problems.map(p => `line ${p.line}: ${p.message}`);
-    if (errors.length) {
-        logger.warn("hotkeys setting:", errors);
-        if (announce) overlay().show(`VcActions hotkeys: ${errors[0]}`, { kind: "error" });
-    }
+    const { problems } = engine;
+    if (!problems.length) return;
+    const lines = problems.map(p => `line ${p.line} ${p.severity}: ${p.message}`);
+    logger.warn("hotkeys setting:", lines);
+    // Once per settings change, not per keypress. Errors skip their line; warnings are still bound.
+    if (announce) overlay().show(`VcActions hotkeys: ${lines.join("; ")}`, { kind: problems.some(p => p.severity === "error") ? "error" : "info" });
 }
 
 /** Run a binding's steps in order, each waiting for the last; the first failure stops the rest and names its step. */
