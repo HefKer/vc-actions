@@ -12,10 +12,10 @@ import { React, RelationshipStore } from "@webpack/common";
 
 import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
-import { WhichKeyHint } from "./lib/hint";
-import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { logger, myId } from "./lib/discord";
 import { UserError } from "./lib/errors";
+import { WhichKeyHint } from "./lib/hint";
+import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
 import { resolveUserArgs } from "./lib/users";
 import { startVoiceTracking, stopVoiceTracking } from "./lib/voice";
