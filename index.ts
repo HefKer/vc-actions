@@ -98,11 +98,12 @@ let engine: BindingEngine | null = null;
 
 function reloadBindings(announce = false) {
     engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
-    const errors = engine.problems.map(p => `line ${p.line}: ${p.message}`);
-    if (errors.length) {
-        logger.warn("hotkeys setting:", errors);
-        if (announce) toastReply(`VcActions hotkeys: ${errors[0]}`, "error");
-    }
+    const { problems } = engine;
+    if (!problems.length) return;
+    const lines = problems.map(p => `line ${p.line} ${p.severity}: ${p.message}`);
+    logger.warn("hotkeys setting:", lines);
+    // Once per settings change, not per keypress. Errors skip their line; warnings are still bound.
+    if (announce) toastReply(`VcActions hotkeys: ${lines.join("; ")}`, problems.some(p => p.severity === "error") ? "error" : "info");
 }
 
 async function runSteps(steps: Step[]) {

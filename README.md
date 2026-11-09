@@ -40,6 +40,11 @@ have spaces. `popout` takes a user id. Modifiers: `ctrl`, `alt`, `shift`, `meta`
 physical key, so `ctrl+shift+1` works. Hotkeys only fire while the Vesktop main window is focused; global
 ones belong in niri binds. None are bound by default.
 
+Problems are logged and shown in a toast when you change the setting. A bad line or a trigger already bound on an
+earlier line is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
+default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
+Discord's. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
+
 ## Adding an action
 
 1. Write `actions/<name>.ts`:
