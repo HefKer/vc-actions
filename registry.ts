@@ -6,7 +6,7 @@
 
 import type { BindingInfo } from "./lib/bindings";
 
-/** One argument of an action: a slash-command option, or a word after the action id in a hotkey line. */
+/** One argument of an action: a slash-command option, or a word after the action id in a binding's step. */
 export interface ActionArg {
     name: string;
     description: string;
@@ -34,7 +34,7 @@ export interface ActionContext {
 }
 
 export interface Action {
-    /** Used in hotkey lines (`ctrl+alt+p = popout`). Lowercase, no spaces. */
+    /** Used in bindings' steps (`ctrl+alt+p = popout`). Lowercase, no spaces. */
     id: string;
     description: string;
     args?: ActionArg[];
