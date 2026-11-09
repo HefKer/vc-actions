@@ -156,6 +156,8 @@ function eventKey(e: { key: string; code: string; }): string {
     if (/^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase();
     if (/^Digit\d$/.test(e.code)) return e.code.slice(5);
     if (/^Numpad\d$/.test(e.code)) return e.code.slice(6);
+    // Chromium on Wayland sends some combos (ctrl+space) with key "Unidentified"; fall back to the physical key.
+    if (e.key === "Unidentified") return e.code === "Space" ? " " : e.code.toLowerCase();
     return e.key.toLowerCase();
 }
 

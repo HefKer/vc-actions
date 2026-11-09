@@ -64,6 +64,12 @@ test("letters and digits match by physical key, whatever shift or the layout typ
     assert.equal(engine.feed(down("ctrl+shift+1", { code: "Numpad1", key: "1" }))[0].type, "run");
 });
 
+test("an Unidentified key matches by its physical key (Chromium on Wayland sends ctrl+space this way)", () => {
+    const engine = createBindingEngine("ctrl+space = stopstream\nctrl+alt+enter = popout", actions);
+    assert.equal(engine.feed(down("ctrl+x", { key: "Unidentified", code: "Space" }))[0].type, "run");
+    assert.equal(engine.feed(down("ctrl+alt+x", { key: "Unidentified", code: "Enter" }))[0].type, "run");
+});
+
 test("modifiers must match exactly; unbound keys pass through", () => {
     const engine = createBindingEngine("ctrl+alt+p = popout", actions);
     assert.deepEqual(engine.feed(down("ctrl+p")), []);
