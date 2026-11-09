@@ -5,7 +5,7 @@
  */
 
 /**
- * The `palette`'s entries and the fuzzy, frecency-boosted ranking that it, `favpick` and `userpick` share. Pure, so
+ * The `palette`'s entries and the fuzzy, frecency-boosted ranking that it and the other pickers share. Pure, so
  * it's unit tested; lib/picker.tsx draws it.
  */
 
@@ -35,6 +35,16 @@ export interface PaletteEntry {
     description?: string;
     /** Takes free text typed after it, appended to `text` (args without choices). */
     open: boolean;
+    /** Shown before the label, not matched: a channel's kind (`#`, 🔊), a sound's emoji. */
+    icon?: string;
+    /** Shown after the label, not matched: an unread dot, a mention count. */
+    badge?: Badge;
+}
+
+/** A short mark on a picker row; `alert` draws it as Discord draws a mention count (red pill). */
+export interface Badge {
+    text: string;
+    alert?: boolean;
 }
 
 /**
