@@ -26,12 +26,12 @@ test("with no full name, a unique case-insensitive prefix wins", () => {
 
 test("a prefix shared by several doesn't guess, and lists the ones it matches", () => {
     assert.deepEqual(resolveName("ga", presets("Gaming", "Game night", "Browser"), "preset"),
-        { ok: false, error: `"ga" matches several presets: Gaming, Game night.` });
+        { ok: false, error: "\"ga\" matches several presets: Gaming, Game night." });
 });
 
 test("no match lists every candidate", () => {
     assert.deepEqual(resolveName("Code", presets("Gaming", "Browser"), "preset"),
-        { ok: false, error: `No preset "Code". Presets: Gaming, Browser.` });
+        { ok: false, error: "No preset \"Code\". Presets: Gaming, Browser." });
 });
 
 test("no name given asks for one and lists the candidates", () => {
@@ -46,7 +46,7 @@ test("a candidate answers to each of its names, and matching two of them isn't a
     ];
     assert.deepEqual(resolveName("ally", users, "user"), { ok: true, value: "111" });
     assert.deepEqual(resolveName("al", users, "user"), { ok: true, value: "111" });
-    assert.deepEqual(resolveName("Carol", users, "user"), { ok: false, error: `No user "Carol". Users: Alice, Bob.` });
+    assert.deepEqual(resolveName("Carol", users, "user"), { ok: false, error: "No user \"Carol\". Users: Alice, Bob." });
 });
 
 test("an earlier tier wins a stage, but a later tier's exact name beats an earlier tier's prefix", () => {
@@ -69,7 +69,7 @@ test("candidates listed in an error show their label when they have one", () => 
     ];
     assert.deepEqual(resolveName("General", channels, "voice channel"), { ok: true, value: "1" });
     assert.deepEqual(resolveName("Gen", channels.slice(1), "voice channel"),
-        { ok: false, error: `"Gen" matches several voice channels: General (Other server), General (Third).` });
+        { ok: false, error: "\"Gen\" matches several voice channels: General (Other server), General (Third)." });
 });
 
 test("a long candidate list is cut short", () => {
@@ -90,5 +90,5 @@ test("a user arg that isn't an id is matched by name", () => {
 });
 
 test("with no candidates at all, says so", () => {
-    assert.deepEqual(resolveName("Gaming", [], "preset"), { ok: false, error: `No preset "Gaming": there are no presets.` });
+    assert.deepEqual(resolveName("Gaming", [], "preset"), { ok: false, error: "No preset \"Gaming\": there are no presets." });
 });
