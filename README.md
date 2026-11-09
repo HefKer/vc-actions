@@ -21,7 +21,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
 | `volume` | `/volume <user> <level>` | `volume alice 80` sets someone's local volume, `+20`/`-20` adjusts it, clamped to 0–200% (100 = normal; VolumeBooster's multiplier raises the ceiling). Holdable: released, the previous volume comes back (hold-to-boost) |
 | `localmute` | | `localmute <user>` toggles someone's local mute (only you stop hearing them) |
-| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader. Any key closes it; Esc is swallowed |
+| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader, hold bindings marked `hold`. Any key closes it; Esc is swallowed |
 | `camera` | | Turn your camera on or off (in a voice channel) |
 | `soundboard` | `/soundboard <sound>` | Play a soundboard sound in your voice channel. Choices: your voice server's sounds, Discord's defaults, then other servers' as `name (Server)` (first 25). The sound list is fetched on first use, like opening the soundboard picker |
 | `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
@@ -68,12 +68,15 @@ have `ctrl`, `alt` or `meta`, so typing never starts one; the keys after it may 
 box. After the leader a which-key hint lists the next keys and what they run. It stays up until you press
 something: Esc cancels, and a key that doesn't continue the sequence cancels it and is swallowed. `popout` takes a user (see
 [Names](#names)). Modifiers:
-`ctrl`, `alt`, `shift`, `meta`. Letters and digits match by physical key, so `ctrl+shift+1` works. Hotkeys
+`ctrl` (or `control`, `mod`), `alt` (or `option`), `shift`, `meta` (or `super`, `win`, `cmd`). Key aliases: `esc`, `space`,
+`plus` (or a trailing `+`: `ctrl++`), `del`, `return`; other keys are named as `KeyboardEvent.key` gives them, lowercased
+(`f8`, `arrowdown`, `enter`). Letters and digits match by physical key, so `ctrl+shift+1` works. Hotkeys
 fire in the main window and in every Discord pop-out (call or stream pop-outs), whichever is focused; global
 ones belong in niri binds. None are bound by default. Feedback (success, errors) shows in a small overlay at
 the bottom of the window you pressed the key in.
 
-Problems are logged and shown in a toast when you change the setting. A bad line, a trigger already bound on an
+Problems are logged and shown in the main window's overlay when the plugin starts and after you change the
+setting (once typing settles, and only when the problems differ from the ones last shown). A bad line, a trigger already bound on an
 earlier line, or an ambiguous one (a combo bound alone and as a leader, or a sequence that starts another) is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
 default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
 Discord's. For a sequence only the leader is checked, once per leader. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
@@ -86,7 +89,7 @@ anything else is reported as an error and the line is skipped. Discord's own mut
 ## Palette
 
 Bind it (`ctrl+alt+space = palette`) and every action is a few letters away without its own key. Entries: your
-bindings first, with their trigger shown, then every action once per choice of its first arg (presets, and for
+bindings first, with their trigger shown (hold bindings left out: with no key to let go of they'd stay on), then every action once per choice of its first arg (presets, and for
 user args without choices the other people in your voice channel; an entry shows the name but runs the id). An
 action whose first arg has no choices (or none right now, e.g. VcPresets missing), or that has more args after
 the chosen one, takes free text: type it after the words that match the entry (`vol ali +20` runs
@@ -101,7 +104,7 @@ Presets, users, sounds and voice channels are matched by name the same way: exac
 case-insensitively, then by unique prefix; a prefix shared by several, or no match, is an error that lists the
 candidates. A user in a binding is an id (or `<@id>`) or a name: nickname, friend nickname, display name or
 username, matched against the people in your voice channel first, then your friends, so an exact friend name
-still beats an in-call prefix (`ctrl+alt+a = popout alice`). A sound matches your voice channel's server's
+still beats an in-call prefix (`ctrl+alt+a = popout alice`). Names never match yourself. A sound matches your voice channel's server's
 sounds first, then Discord's defaults, then other servers' (also as `name (Server)`). A voice channel is matched in the server you're viewing
 (or, from DMs, the one you're in voice in) first; channels elsewhere are listed as `General (Server)` and answer to
 that name too, so `vcjoin general (friends)` picks another server's General. The previous voice channel is tracked by
@@ -109,12 +112,12 @@ VcActions (Discord doesn't keep it) and saved in Vencord's DataStore.
 
 ## Adding an action
 
-1. Write `actions/<name>.ts`:
+1. Write `actions/<id>.ts` (`.tsx` if it draws in the overlay, like `help` and `palette`):
    ```ts
    import { defineAction } from "../registry";
 
    export default defineAction({
-       id: "hello",                 // used in hotkey lines
+       id: "hello",                 // used in bindings' steps
        command: "hello",            // slash command name; omit for hotkey-only
        description: "Say hello",
        args: [{ name: "who", description: "Who to greet", type: "string" }],
@@ -125,10 +128,11 @@ VcActions (Discord doesn't keep it) and saved in Vencord's DataStore.
    ```
 2. Import it in `actions/index.ts` and add it to the list.
 
-`reply` posts a bot message for slash commands and shows the overlay (in the window the key was pressed in) for hotkeys. Throw an `Error` to report a failure.
+`reply` posts a bot message for slash commands and shows the overlay (in the window the key was pressed in) for hotkeys. Throw a `UserError` (`lib/errors.ts`) for an expected failure: its message is the reply. Any other
+throw is replied to and logged.
 Arg `type: "user"` gives a user picker, and in bindings an id or name that reaches `run` as an id; `choices: () => string[]` offers values while typing.
 `holdable: true` lets hold bindings use the action: its `run` then returns a release callback that undoes it
-(a slash command or a plain binding just drops it).
+(a slash command or a plain binding just drops it). `hideInPalette: true` keeps an action out of the palette.
 
 ## How pop-out works
 
@@ -152,7 +156,8 @@ key listeners (capture phase) on the main window and every window in `PopoutWind
 overlay), and re-syncs on each store change and each `discordPopoutEvent` "loaded" message, so new pop-outs
 attach, reloaded ones re-attach and closed ones drop off; plugin stop detaches all. Feedback goes through
 `lib/overlay.tsx`, our own box rendered into that window's document, since Discord's toasts only show in the
-main window (ADR 0001).
+main window (ADR 0001). Each window's overlay has three slots stacked at the bottom (panel for `help`/`palette`,
+the which-key hint, feedback), so feedback never replaces an open palette.
 
 ## Install
 
@@ -170,7 +175,8 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette ranking, Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking,
+cycling, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 
