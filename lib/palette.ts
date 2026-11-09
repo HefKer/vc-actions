@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-/** The `palette`'s entries and fuzzy ranking. Pure, so it's unit tested; actions/palette.tsx draws it. */
+/**
+ * The `palette`'s entries and the fuzzy, frecency-boosted ranking that it, `favpick` and `userpick` share. Pure, so
+ * it's unit tested; lib/picker.tsx draws it.
+ */
 
 import type { BindingInfo } from "./bindings";
 
@@ -27,8 +30,8 @@ export interface PaletteEntry {
     label: string;
     /** The step(s) it runs, in binding syntax. */
     text: string;
-    /** Bindings only: the trigger, shown beside it and matched too. */
-    trigger?: string;
+    /** Shown dimmed beside it and matched too: a binding's trigger, a user's username. */
+    detail?: string;
     description?: string;
     /** Takes free text typed after it, appended to `text` (args without choices). */
     open: boolean;
@@ -41,7 +44,7 @@ export interface PaletteEntry {
 export function buildEntries(bindings: readonly BindingInfo[], actions: readonly PaletteAction[]): PaletteEntry[] {
     const out: PaletteEntry[] = bindings.filter(b => !b.hold).map(b => {
         const text = b.steps.join("; ");
-        return { label: text, text, trigger: b.trigger, open: false };
+        return { label: text, text, detail: b.trigger, open: false };
     });
     for (const { id, description, args } of actions) {
         const [first, ...rest] = args;
@@ -64,7 +67,10 @@ export interface PaletteMatch {
     label: string;
     /** The step(s) Enter runs: the entry's text, plus any free text. */
     text: string;
+    /** Fuzzy score plus frecency boost. */
     score: number;
+    /** How often and lately it was picked (lib/frecency.ts); 0 if never. */
+    frecency: number;
 }
 
 const WORD_START = /[\s;+_\-./:]/;
@@ -100,11 +106,20 @@ function fuzzyScore(query: string, target: string): number | null {
     return hits.length ? Math.max(...hits) - 0.01 * t.length : null;
 }
 
-function matchEntry(words: string[], entry: PaletteEntry): PaletteMatch | null {
+/**
+ * Most frecency adds to a fuzzy score (reached at ~7 recent picks): it reorders close matches, but a clearly better
+ * match still wins (`mute` typed out beats a much-used `unmute`).
+ */
+export const MAX_BOOST = 3;
+
+/** What frecency adds to a match's score: grows with its log, so the first picks count most. */
+export const usageBoost = (frecency: number) => Math.min(MAX_BOOST, Math.log2(1 + frecency));
+
+function matchEntry(words: string[], entry: PaletteEntry, frecency: number): PaletteMatch | null {
     // An open entry may leave trailing words over as free text; prefer giving the match as many words as it takes.
     for (let i = words.length; i >= (entry.open ? Math.min(1, words.length) : words.length); i--) {
         const head = words.slice(0, i).join("").toLowerCase();
-        const scores = [fuzzyScore(head, entry.label), entry.trigger ? fuzzyScore(head, entry.trigger) : null]
+        const scores = [fuzzyScore(head, entry.label), entry.detail ? fuzzyScore(head, entry.detail) : null]
             .filter((s): s is number => s != null);
         if (!scores.length) continue;
         const tail = words.slice(i).join(" ");
@@ -112,17 +127,21 @@ function matchEntry(words: string[], entry: PaletteEntry): PaletteMatch | null {
             entry,
             label: tail ? `${entry.label} ${tail}` : entry.label,
             text: tail ? `${entry.text} ${tail}` : entry.text,
-            score: Math.max(...scores)
+            score: Math.max(...scores) + usageBoost(frecency),
+            frecency
         };
     }
     return null;
 }
 
-/** The entries `query` fuzzy-matches, best first; equal scores keep entry order (bindings first). */
-export function rankEntries(query: string, entries: readonly PaletteEntry[]): PaletteMatch[] {
+/**
+ * The entries `query` fuzzy-matches, best first. `frecency` (default: none used) boosts entries picked often and
+ * lately; with an empty query that's the whole order. Equal scores go by frecency, then entry order (bindings first).
+ */
+export function rankEntries(query: string, entries: readonly PaletteEntry[], frecency: (e: PaletteEntry) => number = () => 0): PaletteMatch[] {
     const words = query.trim().split(/\s+/).filter(Boolean);
     return entries
-        .map(e => matchEntry(words, e))
+        .map(e => matchEntry(words, e, frecency(e)))
         .filter((m): m is PaletteMatch => m != null)
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => b.score - a.score || b.frecency - a.frecency);
 }

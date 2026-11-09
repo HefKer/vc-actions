@@ -18,7 +18,7 @@ test("bindings come first, showing their trigger, then each action", () => {
         [{ trigger: "ctrl+alt+g", steps: ["stream Gaming", "popout"] }],
         [{ id: "stopstream", args: [] }]
     );
-    assert.deepEqual(entries.map(e => [e.label, e.trigger, e.text, e.open]), [
+    assert.deepEqual(entries.map(e => [e.label, e.detail, e.text, e.open]), [
         ["stream Gaming; popout", "ctrl+alt+g", "stream Gaming; popout", false],
         ["stopstream", undefined, "stopstream", false]
     ]);
@@ -29,7 +29,7 @@ test("hold bindings are left out: the palette has no key to let go of", () => {
         [{ trigger: "ctrl+alt+m", steps: ["unmute"], hold: true }, { trigger: "ctrl+alt+p", steps: ["popout"] }],
         []
     );
-    assert.deepEqual(entries.map(e => e.trigger), ["ctrl+alt+p"]);
+    assert.deepEqual(entries.map(e => e.detail), ["ctrl+alt+p"]);
 });
 
 test("an action's first arg with choices gives one entry per choice; later args stay open for free text", () => {
@@ -73,12 +73,12 @@ test("spaces in the query are ignored", () => {
 });
 
 test("a binding matches on its trigger too", () => {
-    assert.deepEqual(labels("ctrl+alt+g", [entry("popout"), entry("stream Gaming", { trigger: "ctrl+alt+g" })]), ["stream Gaming"]);
+    assert.deepEqual(labels("ctrl+alt+g", [entry("popout"), entry("stream Gaming", { detail: "ctrl+alt+g" })]), ["stream Gaming"]);
 });
 
 test("equal matches keep entry order, so bindings stay ahead of actions", () => {
-    const ranked = rankEntries("stream", [entry("stream Gaming", { trigger: "ctrl+alt+1" }), entry("stream Gaming")]);
-    assert.deepEqual(ranked.map(m => m.entry.trigger), ["ctrl+alt+1", undefined]);
+    const ranked = rankEntries("stream", [entry("stream Gaming", { detail: "ctrl+alt+1" }), entry("stream Gaming")]);
+    assert.deepEqual(ranked.map(m => m.entry.detail), ["ctrl+alt+1", undefined]);
 });
 
 test("a match runs the entry's text", () => {
@@ -93,4 +93,31 @@ test("an open entry takes the words after the ones that match it as free text", 
 
 test("a closed entry takes no free text", () => {
     assert.deepEqual(labels("popout alice", [entry("popout")]), []);
+});
+
+const used = (counts: Record<string, number>) => (e: PaletteEntry) => counts[e.label] ?? 0;
+
+test("an empty query lists the most used entries first, then the rest in order", () => {
+    const entries = [entry("popout"), entry("help"), entry("mute"), entry("unmute")];
+    assert.deepEqual(rankEntries("", entries, used({ mute: 2, unmute: 50 })).map(m => m.label), ["unmute", "mute", "popout", "help"]);
+});
+
+test("among close matches, the used one ranks first", () => {
+    const entries = [entry("stopstream"), entry("stream Gaming")];
+    assert.deepEqual(rankEntries("st", entries).map(m => m.label), ["stopstream", "stream Gaming"]);
+    assert.deepEqual(rankEntries("st", entries, used({ "stream Gaming": 1 })).map(m => m.label), ["stream Gaming", "stopstream"]);
+});
+
+test("equal matches go by use before entry order", () => {
+    const entries = [entry("fav work"), entry("fav next")];
+    assert.deepEqual(rankEntries("fav", entries, used({ "fav next": 0.1 })).map(m => m.label), ["fav next", "fav work"]);
+});
+
+test("a clearly better match beats any amount of use", () => {
+    const entries = [entry("unmute"), entry("mute")];
+    assert.deepEqual(rankEntries("mute", entries, used({ unmute: 1000 })).map(m => m.label), ["mute", "unmute"]);
+});
+
+test("use never makes a non-matching entry match", () => {
+    assert.deepEqual(rankEntries("zz", [entry("popout")], used({ popout: 100 })), []);
 });
