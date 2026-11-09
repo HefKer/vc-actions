@@ -14,5 +14,6 @@ export default defineAction({
         const id = currentVoiceChannelId();
         if (!id) return reply("You're not in voice.", "info");
         goToCall(id);
+        reply("Opened the call.", "success");
     }
 });

@@ -23,7 +23,7 @@ function paletteActions(actions: readonly Action[]): PaletteAction[] {
             return [];
         }
     };
-    return actions.filter(a => a.id !== "palette").map(a => ({
+    return actions.filter(a => !a.hideInPalette).map(a => ({
         id: a.id,
         description: a.description,
         args: (a.args ?? []).map(arg => ({
@@ -124,6 +124,7 @@ function Palette({ entries, close, run, gone }: { entries: PaletteEntry[]; close
 
 export default defineAction({
     id: "palette",
+    hideInPalette: true,
     description: "Fuzzy-find and run any binding or action × choice, in the window you're in",
     run({ win = window, bindings = [], actions = [], runSteps, reply }) {
         if (!runSteps) return reply("The palette only opens from a binding.", "error");

@@ -40,8 +40,8 @@ export interface Action {
     args?: ActionArg[];
     /** Slash command name; omit for a hotkey-only action. */
     command?: string;
-    /** Hotkey line suggested in the settings default, e.g. "ctrl+alt+p". Keep clear of Discord's own binds. */
-    defaultHotkey?: string;
+    /** Left out of the palette (the palette itself). */
+    hideInPalette?: boolean;
     /** Its run returns a Release, so `hold <combo> = <id>` bindings may use it. */
     holdable?: boolean;
     /** A holdable action returns how to undo itself; the release of a hold binding calls it. */

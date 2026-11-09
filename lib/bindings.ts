@@ -133,6 +133,9 @@ function parseCombo(text: string): Combo | null {
     return combo.key ? combo : null;
 }
 
+/** Has ctrl, alt or meta: what a leader needs, and what lets a combo fire while typing in a text field. */
+const hasLeaderModifier = (c: Combo) => c.ctrl || c.alt || c.meta;
+
 /** `KeyboardEvent.key` of keys that only modify; pressing one on its own is never a combo. */
 const MODIFIER_KEYS = new Set(["Control", "Alt", "AltGraph", "Shift", "Meta", "OS", "Hyper", "Super"]);
 
@@ -225,7 +228,7 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         if (!parsed.every(c => c)) return error(i + 1, `can't read trigger "${trigger}"`);
         const combos = parsed as Combo[];
         const [leader] = combos;
-        if (keys.length > 1 && !leader.ctrl && !leader.alt && !leader.meta)
+        if (keys.length > 1 && !hasLeaderModifier(leader))
             return error(i + 1, `sequence "${trigger}" must start with ctrl, alt or meta, so typing never starts it`);
         const steps = parseSteps(line.slice(eq + 1), byId);
         if (typeof steps === "string") return error(i + 1, steps);
@@ -285,7 +288,7 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
             if (!hits.length) return typed.length ? cancel() : [];
             // A bare key (no ctrl/alt/meta) shouldn't fire while typing.
             const [c] = hits[0].combos;
-            if (!typed.length && !c.ctrl && !c.alt && !c.meta && e.inTextField) return [];
+            if (!typed.length && !hasLeaderModifier(c) && e.inTextField) return [];
             const done = hits.find(b => b.combos.length === typed.length + 1);
             if (done) {
                 typed = [];

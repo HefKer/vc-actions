@@ -9,7 +9,7 @@ import { defineAction } from "../registry";
 
 export default defineAction({
     id: "mute",
-    description: "Mute your mic; held, unmute again on release (push-to-mute)",
+    description: "Mute your mic; held, your mute goes back to what it was on release (push-to-mute)",
     holdable: true,
     run: () => holdSelfAudio({ mute: true })
 });

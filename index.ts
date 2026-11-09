@@ -24,8 +24,6 @@ import type { Action, ActionArg, ActionContext, Release } from "./registry";
 
 const byId = new Map(actions.map(a => [a.id, a]));
 
-const defaultHotkeys = actions.filter(a => a.defaultHotkey).map(a => `${a.defaultHotkey} = ${a.id}`).join("\n");
-
 const settings = definePluginSettings({
     hotkeys: {
         type: OptionType.STRING,
@@ -33,7 +31,8 @@ const settings = definePluginSettings({
         description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, `;` between steps, a sequence as space-separated combos (`ctrl+space p a = popout alice`), `hold combo = action` to undo it on release. "
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+p = popout, ctrl+alt+1 = stream Gaming. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
-        default: defaultHotkeys,
+        // No bindings by default (AGENTS.md).
+        default: "",
         onChange: () => reloadBindings(ANNOUNCE_DELAY)
     },
     autoPopout: {
