@@ -6,8 +6,8 @@
 
 import type { Action } from "../registry";
 import deafen from "./deafen";
-import mute from "./mute";
 import help from "./help";
+import mute from "./mute";
 import popout from "./popout";
 import presetNext from "./presetNext";
 import retarget from "./retarget";
