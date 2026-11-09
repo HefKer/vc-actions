@@ -9,10 +9,11 @@ import { definePluginSettings } from "@api/Settings";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { CommandOption } from "@vencord/discord-types";
-import { RelationshipStore, UserStore } from "@webpack/common";
+import { React, RelationshipStore, UserStore } from "@webpack/common";
 
 import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
+import { WhichKeyHint } from "./lib/hint";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { PresetsMissing } from "./lib/presets";
 import { ResolveError } from "./lib/resolve";
@@ -30,7 +31,7 @@ const settings = definePluginSettings({
     hotkeys: {
         type: OptionType.STRING,
         multiline: true,
-        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, `;` between steps, `hold combo = action` to undo it on release. "
+        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, `;` between steps, a sequence as space-separated combos (`ctrl+space p a = popout alice`), `hold combo = action` to undo it on release. "
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+p = popout, ctrl+alt+1 = stream Gaming. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         default: defaultHotkeys,
@@ -112,7 +113,8 @@ let engine: BindingEngine | null = null;
 let detachWindows: (() => void) | undefined;
 
 function reloadBindings(announce = false) {
-    engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
+    endHint();
+    engine =createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
     const { problems } = engine;
     if (!problems.length) return;
     const lines = problems.map(p => `line ${p.line} ${p.severity}: ${p.message}`);
@@ -126,7 +128,7 @@ async function runSteps(steps: Step[], win: Window) {
     const reply = overlayReply(win.document);
     for (const [i, step] of steps.entries()) {
         const prefix = steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "";
-        const ctx: ActionContext = { args: step.args, source: "hotkey", reply };
+        const ctx: ActionContext = { args: step.args, source: "hotkey", reply, win, bindings: engine?.bindings };
         if (!(await runAction(byId.get(step.actionId)!, ctx, prefix)).ok) return;
     }
 }
@@ -135,7 +137,7 @@ async function runSteps(steps: Step[], win: Window) {
 const holds = new Map<string, Promise<Release | undefined>>();
 
 function hold(trigger: string, step: Step, win: Window) {
-    const ctx: ActionContext = { args: step.args, source: "hotkey", reply: overlayReply(win.document) };
+    const ctx: ActionContext = { args: step.args, source: "hotkey", reply: overlayReply(win.document), win, bindings: engine?.bindings };
     holds.set(trigger, runAction(byId.get(step.actionId)!, ctx).then(r => r.release));
 }
 
@@ -166,11 +168,28 @@ function toKeyInput(e: KeyboardEvent): KeyInput {
     };
 }
 
+/** Hides the which-key hint, in whichever window it was drawn. */
+let hideHint: (() => void) | undefined;
+
+function endHint() {
+    hideHint?.();
+    hideHint = undefined;
+}
+
 function apply(effects: Effect[], e: Event, win: Window) {
     for (const effect of effects) {
         switch (effect.type) {
             case "run":
+                endHint();
                 runSteps(effect.steps, win);
+                break;
+            case "hint":
+                endHint();
+                // No timeout: it stays until the sequence runs or is cancelled (#15 story 8).
+                hideHint = overlay(win.document).show(React.createElement(WhichKeyHint, { keys: effect.keys, next: effect.next }), { duration: null });
+                break;
+            case "cancel":
+                endHint();
                 break;
             case "hold":
                 hold(effect.trigger, effect.step, win);
@@ -223,6 +242,7 @@ export default definePlugin({
     stop() {
         detachWindows?.();
         detachWindows = undefined;
+        hideHint = undefined;
         for (const trigger of [...holds.keys()]) release(trigger);
         disposeOverlays();
         engine = null;

@@ -6,6 +6,7 @@
 
 import type { Action } from "../registry";
 import deafen from "./deafen";
+import help from "./help";
 import localMute from "./localMute";
 import mute from "./mute";
 import popout from "./popout";
@@ -30,4 +31,5 @@ export const actions: Action[] = [
     deafen,
     volume,
     localMute,
+    help,
 ];
