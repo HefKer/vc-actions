@@ -16,6 +16,10 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `watch` | | `watch next` / `watch prev`: watch the next / previous stream in your call in tile order (your own skipped), wrapping around; the first stream when you watch none |
 | `unwatch` | | Stop watching the stream you're watching (the focused one if you watch several) |
 | `focustile` | `/focustile <user>` | Make a user's tile the main view of the call, without popping it out: their stream tile if they stream, else their user (camera) tile |
+| `mute` | | Mute your mic. Holdable: released, your mute goes back to what it was (push-to-mute) |
+| `unmute` | | Unmute your mic, and undeafen like Discord's own unmute. Holdable: released, both go back (push-to-talk) |
+| `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
+| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader. Any key closes it; Esc is swallowed |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -40,9 +44,10 @@ ctrl+alt+j = watch next
 ctrl+alt+k = watch prev
 ctrl+alt+w = unwatch
 ctrl+alt+f = focustile alice
+ctrl+alt+h = help
 ```
 
-Grammar: `<combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
+Grammar: `[hold] <combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
 its args in order; the last arg takes the rest of the step, so preset names can have spaces. `;` always
 separates steps, so args can't contain it. A binding with several steps (a macro) runs them in order, each
 waiting for the previous one to finish; the first failing step stops the rest and its error names the step.
@@ -57,6 +62,11 @@ Problems are logged and shown in a toast when you change the setting. A bad line
 earlier line is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
 default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
 Discord's. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
+
+**Hold bindings:** `hold ctrl+alt+m = unmute` runs the action on press and undoes it on release: when the key
+(not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
+ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`);
+anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
 
 ## Names
 
@@ -86,6 +96,8 @@ still beats an in-call prefix (`ctrl+alt+a = popout alice`).
 
 `reply` posts a bot message for slash commands and shows the overlay (in the window the key was pressed in) for hotkeys. Throw an `Error` to report a failure.
 Arg `type: "user"` gives a user picker, and in bindings an id or name that reaches `run` as an id; `choices: () => string[]` offers values while typing.
+`holdable: true` lets hold bindings use the action: its `run` then returns a release callback that undoes it
+(a slash command or a plain binding just drops it).
 
 ## How pop-out works
 

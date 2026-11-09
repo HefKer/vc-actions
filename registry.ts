@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import type { BindingInfo } from "./lib/cheatsheet";
+
 /** One argument of an action: a slash-command option, or a word after the action id in a hotkey line. */
 export interface ActionArg {
     name: string;
@@ -21,6 +23,10 @@ export interface ActionContext {
     source: "command" | "hotkey" | "auto";
     /** Report back: a bot message in the channel for commands, our overlay in the pressed-in window for bindings. */
     reply(text: string, kind?: "info" | "success" | "error"): void;
+    /** Bindings only: the window the key was pressed in, pop-outs included. */
+    win?: Window;
+    /** Bindings only: the bindings currently loaded, as written. */
+    bindings?: readonly BindingInfo[];
 }
 
 export interface Action {
@@ -32,7 +38,13 @@ export interface Action {
     command?: string;
     /** Hotkey line suggested in the settings default, e.g. "ctrl+alt+p". Keep clear of Discord's own binds. */
     defaultHotkey?: string;
-    run(ctx: ActionContext): void | Promise<void>;
+    /** Its run returns a Release, so `hold <combo> = <id>` bindings may use it. */
+    holdable?: boolean;
+    /** A holdable action returns how to undo itself; the release of a hold binding calls it. */
+    run(ctx: ActionContext): void | Release | Promise<void | Release>;
 }
+
+/** Undoes what a holdable action did, e.g. restores the previous mute state. */
+export type Release = () => void | Promise<void>;
 
 export const defineAction = (a: Action) => a;

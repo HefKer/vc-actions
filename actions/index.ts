@@ -5,13 +5,17 @@
  */
 
 import type { Action } from "../registry";
+import deafen from "./deafen";
 import focustile from "./focustile";
+import help from "./help";
+import mute from "./mute";
 import popout from "./popout";
 import presetNext from "./presetNext";
 import retarget from "./retarget";
 import stopStream from "./stopStream";
 import stream from "./stream";
 import streamToggle from "./streamToggle";
+import unmute from "./unmute";
 import unwatch from "./unwatch";
 import watch from "./watch";
 
@@ -26,4 +30,8 @@ export const actions: Action[] = [
     watch,
     unwatch,
     focustile,
+    mute,
+    unmute,
+    deafen,
+    help,
 ];
