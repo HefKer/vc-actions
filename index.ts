@@ -36,7 +36,7 @@ const settings = definePluginSettings({
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+p = popout, ctrl+alt+1 = stream Gaming. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         default: defaultHotkeys,
-        onChange: () => reloadBindings(true)
+        onChange: () => reloadBindings(ANNOUNCE_DELAY)
     },
     autoPopout: {
         type: OptionType.BOOLEAN,
@@ -113,15 +113,30 @@ const actionMeta = actions.map(a => ({ id: a.id, args: (a.args ?? []).map(arg =>
 let engine: BindingEngine | null = null;
 let detachWindows: (() => void) | undefined;
 
-function reloadBindings(announce = false) {
+/** Typing in the setting reloads on every keystroke; problems wait this long after the last one. */
+const ANNOUNCE_DELAY = 1500;
+let announceTimer: ReturnType<typeof setTimeout> | undefined;
+/** The problems last shown, so the same set isn't shown again. */
+let announced = "";
+
+/** Load the setting now; show its problems after `delay` ms, once per change of the problems found. */
+function reloadBindings(delay = 0) {
     endHint();
-    engine =createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
+    // The new engine doesn't know the old one's holds, so their keyup would never release them: let go now.
+    for (const trigger of [...holds.keys()]) release(trigger);
+    engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
     const { problems } = engine;
-    if (!problems.length) return;
-    const lines = problems.map(p => `line ${p.line} ${p.severity}: ${p.message}`);
-    logger.warn("hotkeys setting:", lines);
-    // Once per settings change, not per keypress. Errors skip their line; warnings are still bound.
-    if (announce) overlay().show(`VcActions hotkeys: ${lines.join("; ")}`, { kind: problems.some(p => p.severity === "error") ? "error" : "info" });
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(() => {
+        const lines = problems.map(p => `line ${p.line} ${p.severity}: ${p.message}`);
+        const text = lines.join("; ");
+        if (text === announced) return;
+        announced = text;
+        if (!lines.length) return;
+        logger.warn("hotkeys setting:", lines);
+        // Errors skip their line; warnings are still bound.
+        overlay().show(`VcActions hotkeys: ${text}`, { kind: problems.some(p => p.severity === "error") ? "error" : "info" });
+    }, delay);
 }
 
 /** Run a binding's steps in order, each waiting for the last; the first failure stops the rest and names its step. */
@@ -255,6 +270,8 @@ export default definePlugin({
         detachWindows?.();
         detachWindows = undefined;
         hideHint = undefined;
+        clearTimeout(announceTimer);
+        announced = "";
         stopVoiceTracking();
         for (const trigger of [...holds.keys()]) release(trigger);
         disposeOverlays();
