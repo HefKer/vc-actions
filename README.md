@@ -38,23 +38,29 @@ ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
 ctrl+alt+g = stream Gaming; popout
 ctrl+alt+h = help
+ctrl+space p a = popout alice
+ctrl+space s = stream Gaming; popout
 ```
 
-Grammar: `[hold] <combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
+Grammar: `[hold] <trigger> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
 its args in order; the last arg takes the rest of the step, so preset names can have spaces. `;` always
 separates steps, so args can't contain it. A binding with several steps (a macro) runs them in order, each
 waiting for the previous one to finish; the first failing step stops the rest and its error names the step.
-A bad step (unknown action, empty step) makes the whole line an error. `popout` takes a user (see
+A bad step (unknown action, empty step) makes the whole line an error. A trigger is a combo or a sequence:
+space-separated combos pressed one after another (`ctrl+space v j`). A sequence's first combo (the leader) must
+have `ctrl`, `alt` or `meta`, so typing never starts one; the keys after it may be bare and work even in a text
+box. After the leader a which-key hint lists the next keys and what they run. It stays up until you press
+something: Esc cancels, and a key that doesn't continue the sequence cancels it and is swallowed. `popout` takes a user (see
 [Names](#names)). Modifiers:
 `ctrl`, `alt`, `shift`, `meta`. Letters and digits match by physical key, so `ctrl+shift+1` works. Hotkeys
 fire in the main window and in every Discord pop-out (call or stream pop-outs), whichever is focused; global
 ones belong in niri binds. None are bound by default. Feedback (success, errors) shows in a small overlay at
 the bottom of the window you pressed the key in.
 
-Problems are logged and shown in a toast when you change the setting. A bad line or a trigger already bound on an
-earlier line is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
+Problems are logged and shown in a toast when you change the setting. A bad line, a trigger already bound on an
+earlier line, or an ambiguous one (a combo bound alone and as a leader, or a sequence that starts another) is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
 default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
-Discord's. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
+Discord's. For a sequence only the leader is checked, once per leader. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
 
 **Hold bindings:** `hold ctrl+alt+m = unmute` runs the action on press and undoes it on release: when the key
 (not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
