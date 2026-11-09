@@ -10,6 +10,7 @@ import deafen from "./deafen";
 import focustile from "./focustile";
 import goToCall from "./goToCall";
 import help from "./help";
+import localMute from "./localMute";
 import mute from "./mute";
 import palette from "./palette";
 import popout from "./popout";
@@ -23,6 +24,7 @@ import unmute from "./unmute";
 import unwatch from "./unwatch";
 import vcJoin from "./vcJoin";
 import vcLeave from "./vcLeave";
+import volume from "./volume";
 import watch from "./watch";
 
 /** Every action. Adding one: write actions/<name>.ts, import it here, list it below. */
@@ -39,6 +41,8 @@ export const actions: Action[] = [
     mute,
     unmute,
     deafen,
+    volume,
+    localMute,
     help,
     camera,
     soundboard,

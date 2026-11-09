@@ -19,6 +19,8 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `mute` | | Mute your mic. Holdable: released, your mute goes back to what it was (push-to-mute) |
 | `unmute` | | Unmute your mic, and undeafen like Discord's own unmute. Holdable: released, both go back (push-to-talk) |
 | `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
+| `volume` | `/volume <user> <level>` | `volume alice 80` sets someone's local volume, `+20`/`-20` adjusts it, clamped to 0–200% (100 = normal; VolumeBooster's multiplier raises the ceiling). Holdable: released, the previous volume comes back (hold-to-boost) |
+| `localmute` | | `localmute <user>` toggles someone's local mute (only you stop hearing them) |
 | `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader. Any key closes it; Esc is swallowed |
 | `camera` | | Turn your camera on or off (in a voice channel) |
 | `soundboard` | `/soundboard <sound>` | Play a soundboard sound in your voice channel. Choices: your voice server's sounds, Discord's defaults, then other servers' as `name (Server)` (first 25). The sound list is fetched on first use, like opening the soundboard picker |
@@ -78,7 +80,7 @@ Discord's. For a sequence only the leader is checked, once per leader. Discord h
 
 **Hold bindings:** `hold ctrl+alt+m = unmute` runs the action on press and undoes it on release: when the key
 (not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
-ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`);
+ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`, `volume`);
 anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
 
 ## Palette
@@ -178,6 +180,10 @@ real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks th
 - Pop-out needs you in a voice channel; a user's stream must be in yours, Discord won't watch it from outside.
 - The `/stream` and `/retarget` preset choices rely on Discord re-reading a built-in command's `choices`; if they show
   stale or none, type the name: it's still matched.
+- `volume` numbers are the percent Discord's user volume slider shows. Discord stores an amplitude instead
+  (slider 200% is ~199.5, 50% is ~14.4; `lib/volume.ts` mirrors its conversion), so `/volume` reads back the slider
+  value. Only the voice volume, not a stream's audio. Raising a locally muted user's volume unmutes them, as the
+  slider does. On Vesktop without VolumeBooster the slider itself stops at 100%; `volume` still allows 200.
 - Auto pop-out reacts to every `STREAM_WATCH` of a friend's stream, including Discord re-watching after a
   reconnect; it skips streams already popped out.
 - Camera and soundboard use Discord's own `setVideoEnabled` and soundboard play/fetch/lock-check functions, found by
