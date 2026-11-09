@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { copyToClipboard } from "@utils/clipboard";
 import type { Channel, Message } from "@vencord/discord-types";
 import { findByCodeLazy, findByPropsLazy, findLazy } from "@webpack";
 import {
     ChannelActionCreators, ChannelStore, closeModal, ComponentDispatch, EmojiStore, FluxDispatcher, GuildStore, MessageActions,
-    MessageStore, MessageTypeSets, PermissionsBits, PermissionStore, SelectedChannelStore, SelectedGuildStore
+    MessageStore, MessageTypeSets, PermissionsBits, PermissionStore, ReadStateStore, SelectedChannelStore, SelectedGuildStore
 } from "@webpack/common";
 
 import { logger, myId } from "./discord";
@@ -16,13 +17,22 @@ import { parseEmojiArg } from "./emojiArg";
 import { UserError } from "./errors";
 import { type Candidate, resolveName } from "./resolve";
 
-/** MessageFlags.EPHEMERAL; @vencord/discord-types/enums doesn't resolve from this symlinked plugin (see lib/streams.ts). */
+/** MessageFlags and ChannelType values; @vencord/discord-types/enums doesn't resolve from this symlinked plugin (see lib/streams.ts). */
+const HAS_THREAD = 1 << 5;
 const EPHEMERAL = 1 << 6;
+const IS_VOICE_MESSAGE = 1 << 13;
+const GUILD_TEXT = 0;
+const GUILD_VOICE = 2;
+const GUILD_ANNOUNCEMENT = 5;
+const GUILD_STAGE_VOICE = 13;
+/** MessageType.AUTO_MODERATION_ACTION: only moderators may delete it. */
+const AUTO_MODERATION_ACTION = 24;
 
 /**
  * Discord's message-level actions, as its own UI does them: reply (the hover toolbar's Reply), the reaction
- * picker (the context menu's Add Reaction), forwarding (the toolbar's Forward and its modal). The ids and
- * calls were read from Discord's web bundle, November 2026.
+ * picker (the context menu's Add Reaction), forwarding (the toolbar's Forward and its modal), copy text and link,
+ * pin, edit, delete and thread (the context menu's items, with their permission checks), jumps (the reply preview's
+ * and the new-messages bar's). The ids and calls were read from Discord's web bundle, November 2026.
  */
 
 /** Message `li` ids in the chat list: `chat-messages-<channel>-<message>`. */
@@ -43,6 +53,13 @@ export function channelInWindow(doc: Document): string | undefined {
         const id = el.id.match(/^chat-messages-(\d+)-\d+$/)?.[1];
         if (id) return id;
     }
+}
+
+/** The channel `doc` shows messages of, else the selected one (an empty chat); throws if neither. */
+export function windowChannel(doc: Document): string {
+    const id = channelInWindow(doc) ?? SelectedChannelStore.getChannelId();
+    if (!id) throw new UserError("Open a channel first.");
+    return id;
 }
 
 /** The channel's loaded messages, oldest first. */
@@ -277,4 +294,187 @@ async function sendBatch(messages: Message[], destIds: string[], withMessage: st
     const where = destIds.length > 1 ? `${destIds.length} destinations` : "1 destination";
     if (failed) report(`Forwarded ${messages.length} messages to ${where}; ${failed} sends failed (see the console).`, "error");
     else report(`Forwarded ${messages.length} messages to ${where}.`, "success");
+}
+
+/** What search matches a message by: its text, its author's names, embed titles and texts, attachment names. */
+export function messageText(message: Message): string {
+    const content = message.getContentMessage?.() ?? message;
+    return [
+        content.content,
+        message.author?.username,
+        (message.author as { globalName?: string | null; } | undefined)?.globalName,
+        ...content.embeds.flatMap(e => [e.rawTitle, e.rawDescription]),
+        ...content.attachments.map(a => a.filename)
+    ].filter(Boolean).join("\n");
+}
+
+/** Copy to the clipboard from `win`: a pop-out's own clipboard API, since the main document isn't focused then. */
+function copy(text: string, win: Window): Promise<void> {
+    return win === window ? copyToClipboard(text) : win.navigator.clipboard.writeText(text);
+}
+
+/** Copy the text of `messages` (oldest first, a blank line between), like the context menu's Copy Text. */
+export async function copyText(messages: Message[], win: Window): Promise<number> {
+    const texts = messages.map(m => (m.getContentMessage?.() ?? m).content).filter(t => t?.trim());
+    if (!texts.length) throw new UserError(messages.length > 1 ? "Those messages have no text." : "That message has no text.");
+    await copy(texts.join("\n\n"), win);
+    return texts.length;
+}
+
+/** A message's link, as the context menu's Copy Message Link builds it. */
+export function messageLink(message: Message): string {
+    const guildId = ChannelStore.getChannel(message.channel_id)?.guild_id;
+    return `${location.protocol}//${location.host}/channels/${guildId ?? "@me"}/${message.channel_id}/${message.id}`;
+}
+
+/** Copy the links of `messages`, one per line. */
+export async function copyLinks(messages: Message[], win: Window) {
+    await copy(messages.map(messageLink).join("\n"), win);
+}
+
+const isSent = (message: Message) => message.state === "SENT";
+const isUserMessage = (message: Message) => MessageTypeSets.USER_MESSAGE.has(message.type);
+const can = (permission: bigint, channel: Channel) => PermissionStore.can(permission, channel);
+
+/** Discord's pin and delete confirm dialogs (the context menu's; shift-click skips them there, never here). */
+const Confirms: {
+    confirmPin(channel: Channel, message: Message): void;
+    confirmUnpin(channel: Channel, message: Message): void;
+    confirmDelete(channel: Channel, message: Message): void;
+} = findByPropsLazy("confirmPin", "confirmDelete");
+
+/** Discord's modal stack, to let keys through to a dialog while one is open. */
+const Modals: { hasAnyModalOpen(): boolean; } = findByPropsLazy("hasAnyModalOpen", "openModalLazy");
+
+let modalsMissing = false;
+
+/** A Discord dialog is open (our pin or delete confirm, say); false if that can't be told. */
+export function isModalOpen(): boolean {
+    if (modalsMissing) return false;
+    try {
+        return Modals.hasAnyModalOpen();
+    } catch (e) {
+        // Not found: don't search the whole module cache again on every key.
+        modalsMissing = true;
+        logger.warn("Discord's modal stack not found; keys won't pass to its dialogs in message mode", e);
+        return false;
+    }
+}
+
+/** Pin `message`, or unpin it if it's pinned, through Discord's confirm dialog. Discord's permission check: PIN_MESSAGES in servers. */
+export function togglePin(message: Message) {
+    const channel = channelOf(message);
+    const allowed = !channel.isSystemDM() && isSent(message) && isUserMessage(message)
+        && (channel.isPrivate() || (can(PermissionsBits.PIN_MESSAGES, channel) && can(PermissionsBits.READ_MESSAGE_HISTORY, channel)))
+        && channel.type !== GUILD_VOICE && channel.type !== GUILD_STAGE_VOICE;
+    if (!allowed) throw new UserError("You can't pin that message here.");
+    if (message.pinned) Confirms.confirmUnpin(channel, message);
+    else Confirms.confirmPin(channel, message);
+}
+
+/** Delete `message` through Discord's confirm dialog: your own, or anyone's with Manage Messages, as its menu allows. */
+export function deleteMessage(message: Message) {
+    const channel = channelOf(message);
+    const manage = can(PermissionsBits.MANAGE_MESSAGES, channel);
+    const mine = message.canDeleteOwnMessage(myId() ?? "");
+    const allowed = message.state !== "SENDING" && (manage || mine) && !MessageTypeSets.UNDELETABLE.has(message.type)
+        && (message.type !== AUTO_MODERATION_ACTION || manage);
+    if (!allowed) throw new UserError("You can't delete that message.");
+    Confirms.confirmDelete(channel, message);
+}
+
+/** Start Discord's inline edit of `message` (yours), like its toolbar's Edit; the editor takes focus. */
+export function editMessage(message: Message) {
+    const channel = channelOf(message);
+    const editable = message.author.id === myId() && isSent(message) && isUserMessage(message)
+        && !message.hasFlag(IS_VOICE_MESSAGE) && !message.isPoll() && message.referralTrialOfferId == null;
+    if (!editable) throw new UserError(message.author.id === myId() ? "That message can't be edited." : "You can only edit your own messages.");
+    MessageActions.startEditMessageRecord(channel.id, message);
+}
+
+/** Edit your newest editable message in `channelId`, like Up in an empty composer. */
+export function editLastMessage(channelId: string) {
+    const message = MessageStore.getLastEditableMessage(channelId);
+    if (!message) throw new UserError("No message of yours to edit here.");
+    MessageActions.startEditMessageRecord(channelId, message);
+}
+
+/** Discord's open-thread (its toolbar's Thread on a message that has one): side panel or full view, per your setting. */
+const openThreadImpl: (thread: Channel) => void = findByCodeLazy("hideThreadCallUI:!0", "SIDEBAR_CLOSE");
+/** Discord's create-thread flow: the side panel's new-thread form for a message. */
+const createThreadImpl: (parent: Channel, message: Message, location: string) => void =
+    findByCodeLazy("cannot open thread creation sidebar in forums");
+
+/** Open `message`'s thread, or start Discord's create-thread form for it if it has none (with Create Public Threads). */
+export function openThread(message: Message) {
+    const channel = channelOf(message);
+    if (message.hasFlag(HAS_THREAD)) {
+        // A thread started from a message has the message's id.
+        const thread = ChannelStore.getChannel(message.id);
+        if (!thread) throw new UserError("That message's thread isn't loaded.");
+        openThreadImpl(thread);
+        return;
+    }
+    const allowed = (channel.type === GUILD_TEXT || channel.type === GUILD_ANNOUNCEMENT) && isUserMessage(message)
+        && can(PermissionsBits.CREATE_PUBLIC_THREADS, channel) && can(PermissionsBits.READ_MESSAGE_HISTORY, channel);
+    if (!allowed) throw new UserError("You can't start a thread on that message.");
+    createThreadImpl(channel, message, "Message");
+}
+
+/** The message `message` replies to; throws if it isn't a reply. */
+export function repliedTo(message: Message): { channelId: string; messageId: string; } {
+    const ref = message.messageReference;
+    // Type 1 is a forward, which references a message elsewhere rather than replying to it.
+    if (!ref?.message_id || ref.type === 1) throw new UserError("That message isn't a reply.");
+    return { channelId: ref.channel_id ?? message.channel_id, messageId: ref.message_id };
+}
+
+/** Jump to a message like clicking a reply's preview: Discord loads around it, scrolls there and flashes it. */
+export function jumpToMessage(channelId: string, messageId: string, returnMessageId?: string) {
+    MessageActions.jumpToMessage({ channelId, messageId, flash: true, returnMessageId });
+}
+
+/** The nearest element around `el` that scrolls vertically: the chat's scroller for a message. */
+export function scrollerOf(el: Element): HTMLElement | undefined {
+    const win = el.ownerDocument.defaultView ?? window;
+    for (let at = el.parentElement; at; at = at.parentElement) {
+        const { overflowY } = win.getComputedStyle(at);
+        if ((overflowY === "auto" || overflowY === "scroll") && at.scrollHeight > at.clientHeight) return at;
+    }
+}
+
+/** The chat scroller showing `channelId` in `doc`, found from one of its messages. */
+function chatScroller(doc: Document, channelId: string): HTMLElement | undefined {
+    const el = doc.querySelector(`[id^="${elementId(channelId, "")}"]`);
+    return el ? scrollerOf(el) : undefined;
+}
+
+/** How many messages a jump to the present loads; Discord's own works out 10–30 from the window height. */
+const PRESENT_LIMIT = 30;
+
+/**
+ * Scroll the chat of `channelId` (shown in `doc`) to its start, its newest message, or its first unread one like the
+ * new-messages bar. What's loaded is scrolled to directly; otherwise Discord's jump loads it (a jump to the channel's
+ * own id lands on its first message, as the bar does when you never read it).
+ */
+export function scrollChannel(where: "top" | "bottom" | "unread", doc: Document, channelId: string) {
+    const messages = MessageStore.getMessages(channelId);
+    const scroller = chatScroller(doc, channelId);
+    switch (where) {
+        case "top":
+            if (scroller && messages && !messages.hasMoreBefore) scroller.scrollTop = 0;
+            else MessageActions.jumpToMessage({ channelId, messageId: channelId, offset: 1 });
+            return;
+        case "bottom":
+            // As the jump-to-present bar, which shows only while newer messages aren't loaded.
+            if (messages?.hasMoreAfter) MessageActions.jumpToPresent(channelId, PRESENT_LIMIT);
+            else if (scroller) scroller.scrollTop = scroller.scrollHeight;
+            return;
+        case "unread": {
+            if (!ReadStateStore.hasUnread(channelId)) throw new UserError("No unread messages here.");
+            const ack = ReadStateStore.ackMessageId(channelId);
+            MessageActions.jumpToMessage({ channelId, messageId: ack ?? channelId, offset: 1 });
+            return;
+        }
+    }
 }
