@@ -136,7 +136,18 @@ fire in the main window and in every Discord pop-out (call or stream pop-outs), 
 ones belong in niri binds. None are bound by default. Feedback (success, errors) shows in a small overlay at
 the bottom of the window you pressed the key in.
 
-Problems are logged and shown in the main window's overlay when the plugin starts and after you change the
+**The editor** (`lib/editor/`): the setting is a code editor over the same plain text as before, so saved bindings
+carry over. Triggers, `hold`/`on`, events, action ids, args, `;`, group labels (`= +label`) and comments are coloured
+(`lib/highlight.ts`), with line numbers. Once typing settles (0.3 s) the text is checked by the binding engine and
+saved, and again when the editor loses focus or closes; problems mark their line number (red error, yellow warning,
+hover for the message) and are listed under the editor, where a line number jumps to that line. Autocomplete
+(`lib/completion.ts`) offers action ids where a step starts (after `= ` or `; `, or once a letter is typed), then
+that action's arg choices (presets, favorites, plugins... the same `choices()` slash commands use), and events after
+`on `. Up/Down select, Tab inserts, Enter too once something is typed or selected, Esc closes; a fully typed item
+closes the list. Below the editor, **Syntax ▸** sums up this section and **Actions ▸** lists every action with its
+args (`<required>`, `[optional]`); clicking one inserts its id at the cursor.
+
+Problems are also logged and shown in the main window's overlay when the plugin starts and after you change the
 setting (once typing settles, and only when the problems differ from the ones last shown). A bad line, a trigger already bound on an
 earlier line, or an ambiguous one (a combo bound alone and as a leader, or a sequence that starts another) is an error: that line is skipped (the first binding wins), since
 the engine can't tell them apart and the later line could never fire. That includes a combo bound once with `hold` and once without: there's no tap-vs-hold timing.
@@ -317,7 +328,7 @@ QuickActions (Discord doesn't keep it) and saved in Vencord's DataStore.
 
 `reply` posts a bot message for slash commands and shows the overlay (in the window the key was pressed in) for hotkeys. Throw a `UserError` (`lib/errors.ts`) for an expected failure: its message is the reply. Any other
 throw is replied to and logged.
-Arg `type: "user"` gives a user picker, and in bindings an id or name that reaches `run` as an id; `choices: () => string[]` offers values while typing.
+Arg `type: "user"` gives a user picker, and in bindings an id or name that reaches `run` as an id; `choices: () => string[]` offers values while typing, in the slash command and the Hotkeys editor's autocomplete.
 `holdable: true` lets hold bindings use the action: its `run` then returns a release callback that undoes it
 (a slash command or a plain binding just drops it). `hideInPalette: true` keeps an action out of the palette.
 
@@ -362,7 +373,7 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates, channel/server/voice picker rows and sidebar order,
+Unit tests (pure modules in `lib/`: binding engine, event hooks, setting editor's colouring and autocomplete, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates, channel/server/voice picker rows and sidebar order,
 cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker, message mode keys, `react`'s emoji arg; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
