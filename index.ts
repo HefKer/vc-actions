@@ -9,12 +9,14 @@ import { definePluginSettings } from "@api/Settings";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { CommandOption } from "@vencord/discord-types";
-import { RelationshipStore, showToast, UserStore } from "@webpack/common";
+import { RelationshipStore, UserStore } from "@webpack/common";
 
 import { actions } from "./actions";
 import { Binding, matches, parseBindings, splitArgs } from "./lib/hotkeys";
+import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { PresetsMissing } from "./lib/presets";
 import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
+import { attachToWindows } from "./lib/windows";
 import type { Action, ActionArg, ActionContext } from "./registry";
 
 const logger = new Logger("VcActions");
@@ -39,11 +41,8 @@ const settings = definePluginSettings({
     }
 });
 
-const toastVariant = { info: "default", success: "success", error: "critical" } as const;
-
-function toastReply(text: string, kind: "info" | "success" | "error" = "info") {
-    showToast({ text, variant: toastVariant[kind], duration: kind === "error" ? 5000 : 2500 });
-}
+/** Binding feedback goes to our overlay in the window the key was pressed in (ADR 0001). */
+const overlayReply = (doc: Document) => (text: string, kind: OverlayKind = "info") => overlay(doc).show(text, { kind });
 
 async function runAction(action: Action, ctx: ActionContext) {
     try {
@@ -94,17 +93,18 @@ const commands = actions.filter(a => a.command).map(a => ({
 }));
 
 let bindings: Binding[] = [];
+let detachWindows: (() => void) | undefined;
 
 function reloadBindings(announce = false) {
     const { bindings: b, errors } = parseBindings(settings.store.hotkeys ?? "", new Set(byId.keys()));
     bindings = b;
     if (errors.length) {
         logger.warn("hotkeys setting:", errors);
-        if (announce) toastReply(`VcActions hotkeys: ${errors[0]}`, "error");
+        if (announce) overlay().show(`VcActions hotkeys: ${errors[0]}`, { kind: "error" });
     }
 }
 
-function onKeyDown(e: KeyboardEvent) {
+function onKeyDown(e: KeyboardEvent, win: Window) {
     if (e.repeat || !bindings.length) return;
     const hit = bindings.find(b => matches(b.combo, e));
     if (!hit) return;
@@ -117,7 +117,7 @@ function onKeyDown(e: KeyboardEvent) {
     e.stopPropagation();
     const action = byId.get(hit.actionId)!;
     const names = (action.args ?? []).map(a => a.name);
-    runAction(action, { args: splitArgs(hit.rest, names), source: "hotkey", reply: toastReply });
+    runAction(action, { args: splitArgs(hit.rest, names), source: "hotkey", reply: overlayReply(win.document) });
 }
 
 export default definePlugin({
@@ -142,12 +142,13 @@ export default definePlugin({
 
     start() {
         reloadBindings();
-        // Capture phase, so Discord's own handlers don't swallow the combo first.
-        document.addEventListener("keydown", onKeyDown, true);
+        detachWindows = attachToWindows({ keydown: onKeyDown });
     },
 
     stop() {
-        document.removeEventListener("keydown", onKeyDown, true);
+        detachWindows?.();
+        detachWindows = undefined;
+        disposeOverlays();
         bindings = [];
     }
 });
