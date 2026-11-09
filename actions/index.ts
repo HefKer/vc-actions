@@ -37,6 +37,9 @@ import status from "./status";
 import customstatus from "./customstatus";
 import unread from "./unread";
 import markread from "./markread";
+import notifmute from "./notifmute";
+import notifs from "./notifs";
+import inbox from "./inbox";
 
 /** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
@@ -72,4 +75,7 @@ export const actions: Action[] = [
     repeat,
     unread,
     markread,
+    notifmute,
+    notifs,
+    inbox,
 ];

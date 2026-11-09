@@ -39,7 +39,11 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `userpick` | | Fuzzy-pick someone from your DMs and friends and open your DM with them; see [Pickers](#pickers) |
 | `repeat` | | Run again, in the window you pressed it in, the steps the last binding or palette pick ran (a whole macro, args as typed, so names are matched again). Not kept: hold bindings, [event hooks](#event-hooks), slash commands (no window to run in), and any run with `repeat` in it, so `repeat` never repeats itself. Opening the palette counts as a run until you pick something; left out of the palette, where it would only reopen it. Forgotten when the plugin stops |
 | `unread` | `/unread <which>` | `unread next` / `unread prev`: go to the next / previous unread channel, `unread mention`: the next channel with mentions; see [Unread and notifications](#unread-and-read-state). "No unread channels." when there's none |
+| `unread` | `/unread <which>` | `unread next` / `unread prev`: go to the next / previous unread channel, `unread mention`: the next channel with mentions; see [Unread and notifications](#unread-and-notifications). "No unread channels." when there's none |
 | `markread` | `/markread <what>` | `markread channel` / `server` / `all`: mark the channel you're in, the server you're viewing, or every server and DM as read, like Discord's own Mark As Read |
+| `notifmute` | `/notifmute <what>` | `notifmute channel` / `server`: mute the channel you're in (DMs too) or the server you're viewing until you unmute, like its Mute menu item; unmute if it's muted (a timed mute too) |
+| `notifs` | `/notifs <state>` | `notifs on` / `off` / `toggle`: Discord's desktop notifications, the "Enable Desktop Notifications" switch in Settings → Notifications |
+| `inbox` | | Open Discord's notification inbox on its Mentions tab, like Ctrl+I (closes it if it's open) |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -48,7 +52,7 @@ retargeted to (the first preset if none yet); a stream started from VcPresets' o
 
 Setting **Auto pop-out**: when you start watching a friend's stream, it's popped out.
 
-## Unread and read state
+## Unread and notifications
 
 `unread` walks the way Discord's own Alt+Shift+Down/Up (and Ctrl+Shift+Alt+Down/Up for mentions) does: the channels
 after (prev: before) the one you're in, in sidebar order (`ChannelListStore`'s shown channels, joined threads
@@ -64,6 +68,13 @@ shortcut also stops at, are skipped.
 now), `server` a `BULK_ACK` of every channel, joined thread, server events and onboarding questions (what the server
 menu's Mark As Read builds), `all` the same for every server plus every DM and group DM. ReadStateStore keeps the
 unread ones and syncs them to Discord in batches, so `all` on many servers takes a few seconds to reach other devices.
+
+`notifmute` and `notifs` call Discord's own setting creators: `updateChannelOverrideSettings` /
+`updateGuildNotificationSettings` (so a mute syncs to your account like the menu's) and `setDesktopType`. `notifs off`
+sets desktop notifications to Never and `on` to All; "only mentions" counts as on for `toggle`. That setting is
+per device (not synced) and covers the desktop pop-ups only; sounds and badges have their own settings. `inbox`
+toggles the inbox like Ctrl+I, so it needs the inbox button on screen (the title bar's), and switches it to its
+Mentions tab.
 
 ## Hotkeys
 
