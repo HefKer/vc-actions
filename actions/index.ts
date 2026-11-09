@@ -7,6 +7,8 @@
 import type { Action } from "../registry";
 import camera from "./camera";
 import deafen from "./deafen";
+import fav from "./fav";
+import favtoggle from "./favtoggle";
 import focustile from "./focustile";
 import gotocall from "./gotocall";
 import help from "./help";
@@ -51,6 +53,8 @@ export const actions: Action[] = [
     vcjoin,
     vcleave,
     gotocall,
+    fav,
+    favtoggle,
     plugins,
     pluginsettings,
     palette,

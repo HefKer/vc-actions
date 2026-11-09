@@ -14,6 +14,7 @@ import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { logger, myId } from "./lib/discord";
 import { UserError } from "./lib/errors";
+import { loadFavorites } from "./lib/favoriteGuilds";
 import { WhichKeyHint } from "./lib/hint";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
@@ -246,7 +247,7 @@ function onBlur(e: FocusEvent, win: Window) {
 
 export default definePlugin({
     name: "QuickActions",
-    description: "Slash commands, in-app hotkeys and a palette for Discord actions: voice and streaming (stream presets via VcPresets, pop-outs) and more",
+    description: "Slash commands, in-app hotkeys and a palette for Discord actions: voice and streaming (stream presets via VcPresets, pop-outs), favorite servers, Vencord settings and more",
     authors: [{ name: "hefker", id: 0n }],
     dependencies: ["CommandsAPI"],
     settings,
@@ -268,6 +269,7 @@ export default definePlugin({
         running = true;
         reloadBindings();
         startVoiceTracking();
+        loadFavorites();
         detachWindows = attachToWindows({ keydown: onKey, keyup: onKey, blur: onBlur });
     },
 

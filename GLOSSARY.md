@@ -41,3 +41,7 @@ _Avoid_: push-to-X binding, keyup binding
 
 **Holdable**:
 Said of an action that knows how to undo itself on release, which is the only kind a hold binding accepts.
+
+**Favorite server**:
+A server added with `favtoggle`, for `fav` to jump to and cycle through; kept by this plugin, not Discord.
+_Avoid_: pinned server, folder (Discord's server folders are something else)

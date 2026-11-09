@@ -28,6 +28,8 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
 | `vcleave` | | Leave voice; just says so if you're not in voice |
 | `gotocall` | | Open the call view of your voice channel |
+| `fav` | `/fav <server>` | Go to a favorite server: `fav work` by name (see [Names](#names)) or id, `fav next` / `fav prev` cycle them in the order added from the server you're viewing (the first if it isn't one). Choices, so palette entries too: next, prev, each favorite, a short Ctrl+K of only the servers you use |
+| `favtoggle` | `/favtoggle` | Add the server you're viewing to your favorites, or remove it if it's one. Saved in Vencord's DataStore; a server you leave drops out of the list until you rejoin |
 | `plugins` | | Open Vencord's Plugins page in Discord's settings |
 | `pluginsettings` | | `pluginsettings VcPresets` opens that plugin's settings, like its cog in the Plugins page. Choices (and palette entries) are the enabled plugins; any plugin shown in the Plugins page matches by name |
 | `palette` | | Fuzzy command palette in the window you pressed it in (pop-outs too); see [Palette](#palette) |
@@ -59,6 +61,11 @@ ctrl+alt+h = help
 ctrl+space p a = popout alice
 ctrl+space s = stream Gaming; popout
 ctrl+alt+space = palette
+ctrl+space f n = fav next
+ctrl+space f w = fav work
+ctrl+space f t = favtoggle
+ctrl+space , p = plugins
+ctrl+space , v = pluginsettings VcPresets
 ```
 
 Grammar: `[hold] <trigger> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
@@ -103,7 +110,7 @@ closes it and puts focus back. Actions added later appear automatically, with th
 
 ## Names
 
-Presets, users, sounds and voice channels are matched by name the same way: exactly, then
+Presets, users, sounds, voice channels, favorite servers and plugins are matched by name the same way: exactly, then
 case-insensitively, then by unique prefix; a prefix shared by several, or no match, is an error that lists the
 candidates. A user in a binding is an id (or `<@id>`) or a name: nickname, friend nickname, display name or
 username, matched against the people in your voice channel first, then your friends, so an exact friend name
@@ -179,7 +186,7 @@ this repo as `../vencord`. A symlink to the host inside this repo would make sty
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
 Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking,
-cycling, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+cycling, favorites, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 
