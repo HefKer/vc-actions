@@ -13,6 +13,9 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `streamtoggle` | | `streamtoggle <preset>`: start streaming with that preset if you're not live; if you are, stop, whatever preset the stream uses |
 | `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
+| `watch` | | `watch next` / `watch prev`: watch the next / previous stream in your call in tile order (your own skipped), wrapping around; the first stream when you watch none |
+| `unwatch` | | Stop watching the stream you're watching (the focused one if you watch several) |
+| `focustile` | `/focustile <user>` | Make a user's tile the main view of the call, without popping it out: their stream tile if they stream, else their user (camera) tile |
 | `mute` | | Mute your mic. Holdable: released, your mute goes back to what it was (push-to-mute) |
 | `unmute` | | Unmute your mic, and undeafen like Discord's own unmute. Holdable: released, both go back (push-to-talk) |
 | `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
@@ -39,6 +42,10 @@ ctrl+alt+2 = retarget Browser
 ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
 ctrl+alt+g = stream Gaming; popout
+ctrl+alt+j = watch next
+ctrl+alt+k = watch prev
+ctrl+alt+w = unwatch
+ctrl+alt+f = focustile alice
 ctrl+alt+h = help
 ctrl+space p a = popout alice
 ctrl+space s = stream Gaming; popout
@@ -113,6 +120,11 @@ frame name, which Vesktop allows as a Discord pop-out and niri floats.
   Window `DISCORD_CALL_TILE_POPOUT_<channel>_<streamKey>`. Watching a stream that isn't watched yet uses
   Discord's `watchStream` (the `STREAM_WATCH` creator). Auto pop-out uses this path too.
 
+`watch`, `unwatch` and `focustile` use the same kind of creators: `watchStream` (focuses the tile, and without
+"multiple" Discord stops the other watched streams), `closeStream(streamKey)` → `STREAM_CLOSE`, and
+`selectParticipant(channelId, id)` → `CHANNEL_RTC_SELECT_PARTICIPANT` (id = stream key for a stream tile, user id
+for a user tile). Tile order is `ChannelRTCStore.getStreamParticipants`, the call grid's own sorted list.
+
 Hotkeys reach pop-outs the way Vencord's theme injection does (`src/api/Themes.ts`): `lib/windows.ts` puts the
 key listeners (capture phase) on the main window and every window in `PopoutWindowStore` (except the game
 overlay), and re-syncs on each store change and each `discordPopoutEvent` "loaded" message, so new pop-outs
@@ -142,6 +154,7 @@ real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks th
 
 ## Limits
 
+- `focustile` only changes the call view's focus; it doesn't open the call view.
 - Pop-out needs you in a voice channel; a user's stream must be in yours, Discord won't watch it from outside.
 - The `/stream` and `/retarget` preset choices rely on Discord re-reading a built-in command's `choices`; if they show
   stale or none, type the name: it's still matched.

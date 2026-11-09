@@ -7,6 +7,7 @@
 import type { Action } from "../registry";
 import camera from "./camera";
 import deafen from "./deafen";
+import focustile from "./focustile";
 import help from "./help";
 import mute from "./mute";
 import popout from "./popout";
@@ -17,6 +18,8 @@ import stopStream from "./stopStream";
 import stream from "./stream";
 import streamToggle from "./streamToggle";
 import unmute from "./unmute";
+import unwatch from "./unwatch";
+import watch from "./watch";
 
 /** Every action. Adding one: write actions/<name>.ts, import it here, list it below. */
 export const actions: Action[] = [
@@ -26,6 +29,9 @@ export const actions: Action[] = [
     streamToggle,
     presetNext,
     popout,
+    watch,
+    unwatch,
+    focustile,
     mute,
     unmute,
     deafen,

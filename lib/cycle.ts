@@ -12,3 +12,13 @@ export function nextAfter<T>(list: readonly T[], current: T | null | undefined):
     if (!list.length) return undefined;
     return list[(current == null ? 0 : list.indexOf(current) + 1) % list.length];
 }
+
+/**
+ * The item before `current` in `list`, wrapping from the first to the last. Like nextAfter, an unknown or
+ * missing `current` gives the first (so `watch prev` with nothing watched starts at the first stream).
+ */
+export function prevBefore<T>(list: readonly T[], current: T | null | undefined): T | undefined {
+    if (!list.length) return undefined;
+    const i = current == null ? -1 : list.indexOf(current);
+    return list[i < 0 ? 0 : (i - 1 + list.length) % list.length];
+}
