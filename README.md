@@ -246,8 +246,7 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
-Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking,
+Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
 cycling, favorites, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
