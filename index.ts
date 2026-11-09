@@ -44,11 +44,19 @@ const settings = definePluginSettings({
 /** Binding feedback goes to our overlay in the window the key was pressed in (ADR 0001). */
 const overlayReply = (doc: Document) => (text: string, kind: OverlayKind = "info") => overlay(doc).show(text, { kind });
 
-/** Run an action, replying with its error; `prefix` goes before the error. Resolves to whether it succeeded. */
+/**
+ * Run an action, replying with its error; `prefix` goes before any error. Resolves to whether it succeeded:
+ * a throw or an error reply both count as failure.
+ */
 async function runAction(action: Action, ctx: ActionContext, prefix = ""): Promise<boolean> {
+    let failed = false;
+    const reply: ActionContext["reply"] = (text, kind) => {
+        if (kind === "error") { failed = true; text = prefix + text; }
+        ctx.reply(text, kind);
+    };
     try {
-        await action.run(ctx);
-        return true;
+        await action.run({ ...ctx, reply });
+        return !failed;
     } catch (e) {
         // Known failures (missing VcPresets, no stream) get their message; anything else gets logged too.
         if (!(e instanceof PresetsMissing || e instanceof StreamError)) logger.error(`action ${action.id} failed`, e);
