@@ -9,6 +9,9 @@
  * Pure: it never touches Discord or the DOM and owns no timers, so callers feed it events and act on what it returns.
  */
 
+// @ts-expect-error TS5097: node --test resolves only the real file name; tsc still type-checks the import.
+import { discordDefaults } from "./discordDefaults.ts";
+
 /** What the engine needs to know about an action. */
 export interface ActionMeta {
     id: string;
@@ -101,6 +104,13 @@ function comboId(c: Combo): string {
     return [c.ctrl && "ctrl", c.alt && "alt", c.shift && "shift", c.meta && "meta", c.key].filter(Boolean).join("+");
 }
 
+/** Discord's default shortcuts by canonical combo; the first name listed for a combo wins. */
+const discordById = new Map<string, string>();
+for (const [text, what] of discordDefaults) {
+    const id = comboId(parseCombo(text)!);
+    if (!discordById.has(id)) discordById.set(id, what);
+}
+
 /** The key of an event, layout-independent for letters and digits so shift doesn't change it. */
 function eventKey(e: { key: string; code: string; }): string {
     if (/^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase();
@@ -134,6 +144,8 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         const first = seen.get(id);
         if (first) return `"${trigger}" is already bound on line ${first}, which wins`;
         seen.set(id, line);
+        const discord = discordById.get(id);
+        if (discord) problems.push({ severity: "warning", line, message: `"${trigger}" overrides Discord's shortcut for ${discord}` });
     }
 
     text.split("\n").forEach((raw, i) => {

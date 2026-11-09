@@ -131,3 +131,13 @@ test("a trigger bound twice is an error on the later line; the first binding win
     const [run] = engine.feed(down("ctrl+alt+p"));
     assert.equal(run.type === "run" && run.steps[0].actionId, "popout");
 });
+
+test("a trigger that is one of Discord's default shortcuts is a warning naming it, and still bound", () => {
+    const engine = createBindingEngine("ctrl+alt+p = popout\nmod+shift+M = stopstream\nalt+arrowdown = popout", actions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["warning", 2], ["warning", 3]]);
+    assert.match(engine.problems[0].message, /toggle mute/i);
+    assert.match(engine.problems[1].message, /next channel/i);
+    const [run] = engine.feed(down("ctrl+shift+m"));
+    assert.equal(run.type === "run" && run.steps[0].actionId, "stopstream");
+    assert.equal(engine.feed(down("alt+ArrowDown"))[0].type, "run");
+});
