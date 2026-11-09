@@ -16,7 +16,8 @@ function voiceGuildId(): string | null {
     return vcId ? ChannelStore.getChannel(vcId)?.guild_id ?? null : null;
 }
 
-function userNames(userId: string, guildId: string | null | undefined): string[] {
+/** A user's names, best first: nickname in `guildId`'s server, friend nickname, display name, username. */
+export function userNames(userId: string, guildId: string | null | undefined): string[] {
     const u = UserStore.getUser(userId);
     const names = [
         guildId ? GuildMemberStore.getNick(guildId, userId) : null,

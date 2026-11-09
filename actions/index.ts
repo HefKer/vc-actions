@@ -27,6 +27,7 @@ import stream from "./stream";
 import streamtoggle from "./streamtoggle";
 import unmute from "./unmute";
 import unwatch from "./unwatch";
+import userpick from "./userpick";
 import vcjoin from "./vcjoin";
 import vcleave from "./vcleave";
 import volume from "./volume";
@@ -64,4 +65,5 @@ export const actions: Action[] = [
     status,
     customstatus,
     favpick,
+    userpick,
 ];
