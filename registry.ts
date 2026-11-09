@@ -19,7 +19,7 @@ export interface ActionContext {
     /** Argument values by name; missing ones are undefined. */
     args: Record<string, string | undefined>;
     source: "command" | "hotkey" | "auto";
-    /** Report back: a bot message in the channel for commands, a toast otherwise. */
+    /** Report back: a bot message in the channel for commands, our overlay in the pressed-in window for bindings. */
     reply(text: string, kind?: "info" | "success" | "error"): void;
 }
 
