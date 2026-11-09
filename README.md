@@ -101,11 +101,13 @@ ctrl+alt+h = help
 ctrl+space p a = popout alice
 ctrl+space s = stream Gaming; popout
 ctrl+alt+space = palette
+ctrl+space f = +⭐ favorites
 ctrl+space f n = fav next
 ctrl+space f w = fav work
 ctrl+space f t = favtoggle
 ctrl+space f p = favpick
 ctrl+space d = userpick
+ctrl+space , = +config
 ctrl+space , p = plugins
 ctrl+space , v = pluginsettings VcPresets
 ctrl+space m = messagemode
@@ -142,6 +144,16 @@ Discord's. For a sequence only the leader is checked, once per leader. Discord h
 (not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
 ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`, `volume`);
 anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
+
+**Groups:** `<prefix> = +<label>` names the keys a set of sequences share, which-key style: `ctrl+space , = +config`
+labels every sequence starting `ctrl+space ,`. The prefix is a leader or any longer start of a sequence; the `+`
+makes the right side a label, not a step. The hint then shows `,  +config (2)` (the label and how many bindings are
+under it, in a group colour) instead of `+ more keys`, and its header shows the label once you're in the group
+(`ctrl+space ,  +config`). A label starting with an emoji gets it as an icon before the name (`+⭐ favorites`).
+`help` heads the sequences under a group with its label. A group line isn't a binding: it doesn't clash with the
+sequences under it, and may come before or after them. A label for a prefix no sequence goes on past (nothing
+under it, or it's bound itself), a prefix labelled twice (the first label wins), an empty label or `hold` with a
+label is an error and the line is skipped. Comments above lines (`# [c]onfig`) are just comments.
 
 ## Event hooks
 

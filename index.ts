@@ -36,7 +36,7 @@ const settings = definePluginSettings({
     hotkeys: {
         type: OptionType.STRING,
         multiline: true,
-        description: "In-app bindings (Vesktop focused), one per line: `[hold] trigger = step; step`. A trigger is a combo (`ctrl+alt+p`) or a sequence of space-separated combos (`ctrl+space p a`); a step is `action args`; `hold` (one combo, one step) undoes the action on release. "
+        description: "In-app bindings (Vesktop focused), one per line: `[hold] trigger = step; step`. A trigger is a combo (`ctrl+alt+p`) or a sequence of space-separated combos (`ctrl+space p a`); a step is `action args`; `hold` (one combo, one step) undoes the action on release; `prefix = +label` names the group of sequences starting with prefix (`ctrl+space c = +config`). "
             + `\`on event = step; step\` runs steps when an event fires (${Object.keys(HOOK_EVENTS).join(", ")}). `
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+g = stream Gaming; popout. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",

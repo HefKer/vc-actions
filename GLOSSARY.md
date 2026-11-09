@@ -24,6 +24,10 @@ _Avoid_: chord, multi-key
 The first combo of a sequence.
 _Avoid_: prefix key
 
+**Group**:
+The keys several sequences start with, named by a line `<prefix> = +<label>` so the which-key hint and `help` show the label.
+_Avoid_: prefix group, submenu, category
+
 **Binding**:
 One line of the hotkeys setting: a trigger (combo or sequence) and the step or steps it runs.
 _Avoid_: hotkey line, mapping, shortcut
