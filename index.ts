@@ -28,7 +28,7 @@ const settings = definePluginSettings({
     hotkeys: {
         type: OptionType.STRING,
         multiline: true,
-        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`. "
+        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, `;` between steps. "
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+p = popout, ctrl+alt+1 = stream Gaming. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         default: defaultHotkeys,
@@ -44,13 +44,16 @@ const settings = definePluginSettings({
 /** Binding feedback goes to our overlay in the window the key was pressed in (ADR 0001). */
 const overlayReply = (doc: Document) => (text: string, kind: OverlayKind = "info") => overlay(doc).show(text, { kind });
 
-async function runAction(action: Action, ctx: ActionContext) {
+/** Run an action, replying with its error; `prefix` goes before the error. Resolves to whether it succeeded. */
+async function runAction(action: Action, ctx: ActionContext, prefix = ""): Promise<boolean> {
     try {
         await action.run(ctx);
+        return true;
     } catch (e) {
         // Known failures (missing VcPresets, no stream) get their message; anything else gets logged too.
         if (!(e instanceof PresetsMissing || e instanceof StreamError)) logger.error(`action ${action.id} failed`, e);
-        ctx.reply(e instanceof Error ? e.message : String(e), "error");
+        ctx.reply(prefix + (e instanceof Error ? e.message : String(e)), "error");
+        return false;
     }
 }
 
@@ -82,9 +85,9 @@ const commands = actions.filter(a => a.command).map(a => ({
     description: a.description,
     inputType: ApplicationCommandInputType.BUILT_IN,
     options: (a.args ?? []).map(toOption),
-    execute: (opts: { name: string; value: string; }[], { channel }: { channel: { id: string; }; }) => {
+    execute: async (opts: { name: string; value: string; }[], { channel }: { channel: { id: string; }; }) => {
         const args = Object.fromEntries((a.args ?? []).map(arg => [arg.name, opts.find(o => o.name === arg.name)?.value]));
-        return runAction(a, {
+        await runAction(a, {
             args,
             source: "command",
             reply: text => sendBotMessage(channel.id, { content: text })
@@ -105,10 +108,13 @@ function reloadBindings(announce = false) {
     }
 }
 
+/** Run a binding's steps in order, each waiting for the last; the first failure stops the rest and names its step. */
 async function runSteps(steps: Step[], win: Window) {
     const reply = overlayReply(win.document);
-    for (const step of steps) {
-        await runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply });
+    for (const [i, step] of steps.entries()) {
+        const prefix = steps.length > 1 ? `step ${i + 1} (${step.text}) failed: ` : "";
+        const ctx: ActionContext = { args: step.args, source: "hotkey", reply };
+        if (!await runAction(byId.get(step.actionId)!, ctx, prefix)) return;
     }
 }
 

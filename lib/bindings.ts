@@ -114,6 +114,21 @@ function splitArgs(rest: string, names: string[]): Record<string, string | undef
     return out;
 }
 
+/** Split the right side of a binding on `;` into steps; a string is the error for the whole binding. */
+function parseSteps(text: string, byId: Map<string, ActionMeta>): Step[] | string {
+    const parts = text.split(";").map(s => s.trim());
+    const steps: Step[] = [];
+    for (const [n, stepText] of parts.entries()) {
+        const where = parts.length > 1 ? `step ${n + 1}: ` : "";
+        const [actionId = "", ...rest] = stepText.split(/\s+/);
+        if (!actionId) return `${where}empty step`;
+        const action = byId.get(actionId);
+        if (!action) return `${where}no action "${actionId}"`;
+        steps.push({ actionId, args: splitArgs(rest.join(" "), action.args), text: stepText });
+    }
+    return steps;
+}
+
 /** Build an engine from the bindings text (`trigger = step` per line, `#` comments) and the known actions. */
 export function createBindingEngine(text: string, actions: ActionMeta[]): BindingEngine {
     const byId = new Map(actions.map(a => [a.id, a]));
@@ -127,13 +142,11 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         const eq = line.indexOf("=");
         if (eq < 0) return error(i + 1, `expected "trigger = action", got "${line}"`);
         const trigger = line.slice(0, eq).trim();
-        const stepText = line.slice(eq + 1).trim();
-        const [actionId = "", ...rest] = stepText.split(/\s+/);
         const combo = parseCombo(trigger);
         if (!combo) return error(i + 1, `can't read trigger "${trigger}"`);
-        const action = byId.get(actionId);
-        if (!action) return error(i + 1, `no action "${actionId}"`);
-        bindings.push({ combo, trigger, steps: [{ actionId, args: splitArgs(rest.join(" "), action.args), text: stepText }] });
+        const steps = parseSteps(line.slice(eq + 1), byId);
+        if (typeof steps === "string") return error(i + 1, steps);
+        bindings.push({ combo, trigger, steps });
     });
 
     return {

@@ -33,13 +33,18 @@ ctrl+alt+0 = stopstream
 ctrl+alt+2 = retarget Browser
 ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
+ctrl+alt+g = stream Gaming; popout
 ```
 
-Words after the action id fill its args in order; the last arg takes the rest of the line, so preset names can
-have spaces. `popout` takes a user id. Modifiers: `ctrl`, `alt`, `shift`, `meta`. Letters and digits match by
-physical key, so `ctrl+shift+1` works. Hotkeys fire in the main window and in every Discord pop-out (call
-or stream pop-outs), whichever is focused; global ones belong in niri binds. None are bound by default.
-Feedback (success, errors) shows in a small overlay at the bottom of the window you pressed the key in.
+Grammar: `<combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
+its args in order; the last arg takes the rest of the step, so preset names can have spaces. `;` always
+separates steps, so args can't contain it. A binding with several steps (a macro) runs them in order, each
+waiting for the previous one to finish; the first failing step stops the rest and its error names the step.
+A bad step (unknown action, empty step) makes the whole line an error. `popout` takes a user id. Modifiers:
+`ctrl`, `alt`, `shift`, `meta`. Letters and digits match by physical key, so `ctrl+shift+1` works. Hotkeys
+fire in the main window and in every Discord pop-out (call or stream pop-outs), whichever is focused; global
+ones belong in niri binds. None are bound by default. Feedback (success, errors) shows in a small overlay at
+the bottom of the window you pressed the key in.
 
 ## Adding an action
 
