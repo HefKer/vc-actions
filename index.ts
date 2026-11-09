@@ -5,7 +5,7 @@
  */
 
 import { ApplicationCommandInputType, ApplicationCommandOptionType, sendBotMessage } from "@api/Commands";
-import { definePluginSettings } from "@api/Settings";
+import { definePluginSettings, migratePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
 import { CommandOption } from "@vencord/discord-types";
 import { React, RelationshipStore } from "@webpack/common";
@@ -21,6 +21,9 @@ import { resolveUserArgs } from "./lib/users";
 import { startVoiceTracking, stopVoiceTracking } from "./lib/voice";
 import { attachToWindows } from "./lib/windows";
 import type { Action, ActionArg, ActionContext, Release } from "./registry";
+
+// Was VcActions until it grew past voice (ADR 0003): carry over saved bindings and the enabled flag.
+migratePluginSettings("QuickActions", "VcActions");
 
 const byId = new Map(actions.map(a => [a.id, a]));
 
@@ -136,7 +139,7 @@ function reloadBindings(delay = 0) {
         if (!lines.length) return;
         logger.warn("hotkeys setting:", lines);
         // Errors skip their line; warnings are still bound.
-        overlay().show(`VcActions hotkeys: ${text}`, { kind: problems.some(p => p.severity === "error") ? "error" : "info" });
+        overlay().show(`QuickActions hotkeys: ${text}`, { kind: problems.some(p => p.severity === "error") ? "error" : "info" });
     }, delay);
 }
 
@@ -242,8 +245,8 @@ function onBlur(e: FocusEvent, win: Window) {
 }
 
 export default definePlugin({
-    name: "VcActions",
-    description: "Slash commands and in-app hotkeys for voice/streaming: stream presets (via VcPresets), pop out a stream, and more",
+    name: "QuickActions",
+    description: "Slash commands, in-app hotkeys and a palette for Discord actions: voice and streaming (stream presets via VcPresets, pop-outs) and more",
     authors: [{ name: "hefker", id: 0n }],
     dependencies: ["CommandsAPI"],
     settings,

@@ -18,6 +18,7 @@ const ChannelActions: {
     disconnect(): void;
 } = findByPropsLazy("selectVoiceChannel", "selectChannel");
 
+// Old plugin name kept so the saved channel survives the rename (ADR 0003).
 const LAST_KEY = "VcActions_lastVoiceChannel";
 
 export const currentVoiceChannelId = (): string | null => SelectedChannelStore.getVoiceChannelId() ?? null;

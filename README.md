@@ -1,6 +1,7 @@
-# VcActions
+# QuickActions
 
-Vencord userplugin for Vesktop: slash commands and in-app hotkeys for voice and streaming.
+Vencord userplugin for Vesktop: slash commands, in-app hotkeys and a palette for voice, streaming and other everyday Discord actions.
+It was called VcActions; its saved settings move to the new name on first start (ADR 0003). The repo keeps the old name.
 Each action is one file in `actions/`; the same action runs from a slash command, a hotkey, or both.
 
 ## Actions
@@ -31,7 +32,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
-VcPresets doesn't say which preset is live, so `preset next` counts from the preset VcActions last started or
+VcPresets doesn't say which preset is live, so `preset next` counts from the preset QuickActions last started or
 retargeted to (the first preset if none yet); a stream started from VcPresets' own UI isn't seen.
 
 Setting **Auto pop-out**: when you start watching a friend's stream, it's popped out.
@@ -108,7 +109,7 @@ still beats an in-call prefix (`ctrl+alt+a = popout alice`). Names never match y
 sounds first, then Discord's defaults, then other servers' (also as `name (Server)`). A voice channel is matched in the server you're viewing
 (or, from DMs, the one you're in voice in) first; channels elsewhere are listed as `General (Server)` and answer to
 that name too, so `vcjoin general (friends)` picks another server's General. The previous voice channel is tracked by
-VcActions (Discord doesn't keep it) and saved in Vencord's DataStore.
+QuickActions (Discord doesn't keep it) and saved in Vencord's DataStore.
 
 ## Adding an action
 
@@ -166,7 +167,7 @@ the which-key hint, feedback), so feedback never replaces an open palette.
 
 **By hand:** clone Vencord next to this repo as `../vencord`, symlink this repo to `../vencord/src/userplugins/vcActions`,
 `pnpm build` there, then Vesktop Settings → Vesktop → Vencord Location → that tree's `dist`, restart Vesktop, and
-enable **VcActions** (and [VcPresets](https://github.com/HefKer/vc-presets)).
+enable **QuickActions** (and [VcPresets](https://github.com/HefKer/vc-presets)).
 
 ## Building
 

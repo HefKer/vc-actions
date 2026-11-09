@@ -1,6 +1,6 @@
-# VcActions
+# QuickActions
 
-Keyboard and slash-command control of Discord voice and streaming inside Vesktop.
+Keyboard, palette and slash-command control of Discord inside Vesktop: voice and streaming first, plus other things you do often.
 
 ## Language
 

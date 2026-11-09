@@ -8,7 +8,7 @@ import { Logger } from "@utils/Logger";
 import { FluxDispatcher, UserStore } from "@webpack/common";
 
 /** The plugin's one logger. */
-export const logger = new Logger("VcActions");
+export const logger = new Logger("QuickActions");
 
 /** Your own user id (undefined before login). */
 export const myId = (): string | undefined => UserStore.getCurrentUser()?.id;

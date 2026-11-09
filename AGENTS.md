@@ -1,4 +1,4 @@
-# vc-actions — Vencord userplugin `VcActions`
+# vc-actions — Vencord userplugin `QuickActions` (was `VcActions`, ADR 0003)
 
 Hotkeys and slash commands for Vesktop, built as a **registry**: one file per action under `actions/`.
 README.md is the source of truth for the actions, adding one, pop-out internals, install and limits; keep it in sync.

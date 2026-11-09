@@ -85,7 +85,7 @@ function hostFor(doc: Document): Host {
     }
     if (!host) {
         const el = doc.createElement("div");
-        el.id = "vc-actions-overlay";
+        el.id = "quick-actions-overlay";
         Object.assign(el.style, {
             position: "fixed", left: "50%", bottom: "32px", transform: "translateX(-50%)", zIndex: "100000",
             display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", pointerEvents: "none"

@@ -13,7 +13,7 @@ const kbd = { fontFamily: "var(--font-code, monospace)", paddingRight: 16, white
 function Cheatsheet({ groups }: { groups: CheatsheetGroup[]; }) {
     return (
         <div>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>VcActions bindings</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>QuickActions bindings</div>
             {groups.map(g => (
                 <div key={g.leader ?? ""} style={{ marginTop: 6 }}>
                     {g.leader && <div style={{ ...kbd, opacity: 0.7 }}>{g.leader} …</div>}
