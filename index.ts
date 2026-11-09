@@ -15,7 +15,9 @@ import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
 import { PresetsMissing } from "./lib/presets";
+import { ResolveError } from "./lib/resolve";
 import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
+import { resolveUserArgs } from "./lib/users";
 import { attachToWindows } from "./lib/windows";
 import type { Action, ActionArg, ActionContext } from "./registry";
 
@@ -55,11 +57,12 @@ async function runAction(action: Action, ctx: ActionContext, prefix = ""): Promi
         ctx.reply(text, kind);
     };
     try {
-        await action.run({ ...ctx, reply });
+        // User args may be names in bindings; slash commands' pickers already give ids, which pass through.
+        await action.run({ ...ctx, args: resolveUserArgs(action, ctx.args), reply });
         return !failed;
     } catch (e) {
-        // Known failures (missing VcPresets, no stream) get their message; anything else gets logged too.
-        if (!(e instanceof PresetsMissing || e instanceof StreamError)) logger.error(`action ${action.id} failed`, e);
+        // Known failures (missing VcPresets, no stream, unknown name) get their message; anything else gets logged too.
+        if (!(e instanceof PresetsMissing || e instanceof StreamError || e instanceof ResolveError)) logger.error(`action ${action.id} failed`, e);
         ctx.reply(prefix + (e instanceof Error ? e.message : String(e)), "error");
         return false;
     }
