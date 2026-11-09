@@ -35,6 +35,8 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `palette` | | Fuzzy command palette in the window you pressed it in (pop-outs too); see [Palette](#palette) |
 | `status` | `/status <status> [target]` | `status online` / `idle` / `dnd` / `invisible` sets your status. `status toggle dnd` sets dnd, or if you're already dnd, goes back to the status you had before the toggle (online if unknown, e.g. after a restart). Holdable (`hold <combo> = status dnd`): released, the previous status comes back. Setting **DND while streaming** (off by default) sets dnd when you go live and restores the previous status when the stream ends, unless you changed it meanwhile (already dnd or invisible: left alone) |
 | `customstatus` | `/customstatus <text>` | Set your custom status text, no expiry, keeping its emoji. `customstatus clear` clears it; `customstatus \clear` sets the literal text "clear" |
+| `favpick` | | Fuzzy-pick one of your favorite servers (see `favtoggle`) and go there; the palette's picker, in the window you pressed it in. See [Pickers](#pickers) |
+| `userpick` | | Fuzzy-pick someone from your DMs and friends and open your DM with them; see [Pickers](#pickers) |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -66,6 +68,8 @@ ctrl+alt+space = palette
 ctrl+space f n = fav next
 ctrl+space f w = fav work
 ctrl+space f t = favtoggle
+ctrl+space f p = favpick
+ctrl+space d = userpick
 ctrl+space , p = plugins
 ctrl+space , v = pluginsettings VcPresets
 ```
@@ -110,6 +114,26 @@ triggers: the letters in order, case and spaces ignored, word starts and runs ra
 Up/Down select, Enter runs (a binding's steps as a macro, feedback in the same window), Esc or leaving the box
 closes it and puts focus back. Actions added later appear automatically, with their `choices()`.
 
+Entries you run often and lately rank first (frecency): with an empty box they lead the list; while typing they get
+a boost of up to about a word start's worth, enough to reorder close matches but not to beat a clearly better
+one (`mute` typed out still beats a much-used `unmute`). Each run adds 1 to an entry's count and counts halve every
+week (`lib/frecency.ts`). Counts are per entry (its step text, so `volume alice` counts by alice's id) and saved
+in Vencord's DataStore (`QuickActions_uses_palette`), at most 200 entries.
+
+## Pickers
+
+`favpick` and `userpick` open the palette's picker over a list of their own, in the window you pressed the key in:
+same fuzzy matching (over the name, and a user's username), Up/Down, Enter, Esc, and frecency (counted per
+picker by server or user id, `QuickActions_uses_favpick`/`_userpick`). Both are in the palette too.
+
+- `favpick`: your favorite servers you're still in, in the order added. Enter goes there like `fav`. No favorites
+  yet: it says so instead of opening.
+- `userpick`: the other person of each one-to-one DM, in Discord's DM list order (latest message first), then
+  friends you have no DM with, by name; group DMs and yourself are left out. Shown by friend nickname, display
+  name or username, with the username beside it when that differs. Enter opens your DM with them (Discord's
+  `openPrivateChannel` creates it for a friend you never messaged). Navigation happens in the main window, as with
+  `fav`.
+
 ## Names
 
 Presets, users, sounds, voice channels, favorite servers and plugins are matched by name the same way: exactly, then
@@ -124,7 +148,7 @@ QuickActions (Discord doesn't keep it) and saved in Vencord's DataStore.
 
 ## Adding an action
 
-1. Write `actions/<id>.ts` (`.tsx` if it draws in the overlay, like `help` and `palette`):
+1. Write `actions/<id>.ts` (`.tsx` if it draws in the overlay, like `help`; a fuzzy list is `openPicker` in `lib/picker.tsx`):
    ```ts
    import { defineAction } from "../registry";
 
@@ -168,7 +192,7 @@ key listeners (capture phase) on the main window and every window in `PopoutWind
 overlay), and re-syncs on each store change and each `discordPopoutEvent` "loaded" message, so new pop-outs
 attach, reloaded ones re-attach and closed ones drop off; plugin stop detaches all. Feedback goes through
 `lib/overlay.tsx`, our own box rendered into that window's document, since Discord's toasts only show in the
-main window (ADR 0001). Each window's overlay has three slots stacked at the bottom (panel for `help`/`palette`,
+main window (ADR 0001). Each window's overlay has three slots stacked at the bottom (panel for `help` and the pickers,
 the which-key hint, feedback), so feedback never replaces an open palette.
 
 ## Install
@@ -187,7 +211,7 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking,
+Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
 cycling, favorites, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
