@@ -96,6 +96,11 @@ function parseCombo(text: string): Combo | null {
     return combo.key ? combo : null;
 }
 
+/** One string per distinct combo, whatever synonyms or case it was written with. */
+function comboId(c: Combo): string {
+    return [c.ctrl && "ctrl", c.alt && "alt", c.shift && "shift", c.meta && "meta", c.key].filter(Boolean).join("+");
+}
+
 /** The key of an event, layout-independent for letters and digits so shift doesn't change it. */
 function eventKey(e: { key: string; code: string; }): string {
     if (/^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase();
@@ -121,6 +126,16 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
     const problems: Problem[] = [];
     const error = (line: number, message: string) => problems.push({ severity: "error", line, message });
 
+    /** Line each trigger was first bound on, by canonical combo. */
+    const seen = new Map<string, number>();
+    /** Conflict checks for a parsed binding: returns an error (skip the line) or pushes warnings (still bound). */
+    function checkConflicts(combo: Combo, trigger: string, line: number): string | undefined {
+        const id = comboId(combo);
+        const first = seen.get(id);
+        if (first) return `"${trigger}" is already bound on line ${first}, which wins`;
+        seen.set(id, line);
+    }
+
     text.split("\n").forEach((raw, i) => {
         const line = raw.replace(/#.*/, "").trim();
         if (!line) return;
@@ -133,6 +148,8 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         if (!combo) return error(i + 1, `can't read trigger "${trigger}"`);
         const action = byId.get(actionId);
         if (!action) return error(i + 1, `no action "${actionId}"`);
+        const clash = checkConflicts(combo, trigger, i + 1);
+        if (clash) return error(i + 1, clash);
         bindings.push({ combo, trigger, steps: [{ actionId, args: splitArgs(rest.join(" "), action.args), text: stepText }] });
     });
 
