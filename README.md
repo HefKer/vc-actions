@@ -163,7 +163,7 @@ on muted = volume alice 150
 | `muted` / `unmuted` | your mic's mute flag changes (deafening alone doesn't count) |
 
 Events are changes of your state as Discord's stores hold it (SelectedChannelStore, ApplicationStreamingStore,
-MediaEngineStore), not raw Flux actions, so nothing fires for the state you're already in when the plugin starts or
+MediaEngineStore), not raw Flux actions (ADR 0004), so nothing fires for the state you're already in when the plugin starts or
 the setting changes, and a no-op (muting while muted) fires nothing. A stream re-watched after a reconnect counts again.
 Steps run in the main window (`source` "auto"); their feedback and errors, named `on <event>:`, show in its overlay.
 One line per event: a second `on` for the same event is an error and the first wins, put all its steps on one line.
