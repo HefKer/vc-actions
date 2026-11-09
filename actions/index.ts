@@ -6,6 +6,7 @@
 
 import type { Action } from "../registry";
 import camera from "./camera";
+import customstatus from "./customstatus";
 import deafen from "./deafen";
 import fav from "./fav";
 import favpick from "./favpick";
@@ -13,8 +14,12 @@ import favtoggle from "./favtoggle";
 import focustile from "./focustile";
 import gotocall from "./gotocall";
 import help from "./help";
+import inbox from "./inbox";
 import localmute from "./localmute";
+import markread from "./markread";
 import mute from "./mute";
+import notifmute from "./notifmute";
+import notifs from "./notifs";
 import palette from "./palette";
 import plugins from "./plugins";
 import pluginsettings from "./pluginsettings";
@@ -23,23 +28,18 @@ import preset from "./preset";
 import repeat from "./repeat";
 import retarget from "./retarget";
 import soundboard from "./soundboard";
+import status from "./status";
 import stopstream from "./stopstream";
 import stream from "./stream";
 import streamtoggle from "./streamtoggle";
 import unmute from "./unmute";
+import unread from "./unread";
 import unwatch from "./unwatch";
 import userpick from "./userpick";
 import vcjoin from "./vcjoin";
 import vcleave from "./vcleave";
 import volume from "./volume";
 import watch from "./watch";
-import status from "./status";
-import customstatus from "./customstatus";
-import unread from "./unread";
-import markread from "./markread";
-import notifmute from "./notifmute";
-import notifs from "./notifs";
-import inbox from "./inbox";
 
 /** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
