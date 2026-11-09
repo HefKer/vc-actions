@@ -17,6 +17,8 @@ export interface ActionMeta {
     id: string;
     /** Arg names in order; the last one takes the rest of the step. */
     args: string[];
+    /** Its run can return a release callback, so hold bindings may use it. */
+    holdable?: boolean;
 }
 
 /** A key event as the engine sees it. Modifiers and `repeat` mirror KeyboardEvent. */
@@ -46,6 +48,10 @@ export interface Step {
 export type Effect =
     /** Run these steps in order. */
     | { type: "run"; trigger: string; steps: Step[]; }
+    /** Hold binding pressed: run this step and keep its release callback under `trigger`. */
+    | { type: "hold"; trigger: string; step: Step; }
+    /** Hold binding let go (keyup or blur): call the release callback kept under `trigger`. */
+    | { type: "release"; trigger: string; }
     /** Stop the event reaching Discord (preventDefault + stopPropagation). Absent means pass it through. */
     | { type: "swallow"; };
 
@@ -74,6 +80,7 @@ interface Binding {
     combo: Combo;
     trigger: string;
     steps: Step[];
+    hold?: boolean;
 }
 
 const MODS: Record<string, keyof Omit<Combo, "key">> = {
@@ -144,7 +151,7 @@ function parseSteps(text: string, byId: Map<string, ActionMeta>): Step[] | strin
     return steps;
 }
 
-/** Build an engine from the bindings text (`trigger = step` per line, `#` comments) and the known actions. */
+/** Build an engine from the bindings text (`[hold] trigger = step` per line, `#` comments) and the known actions. */
 export function createBindingEngine(text: string, actions: ActionMeta[]): BindingEngine {
     const byId = new Map(actions.map(a => [a.id, a]));
     const bindings: Binding[] = [];
@@ -168,27 +175,48 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         if (!line) return;
         const eq = line.indexOf("=");
         if (eq < 0) return error(i + 1, `expected "trigger = action", got "${line}"`);
-        const trigger = line.slice(0, eq).trim();
+        let trigger = line.slice(0, eq).trim();
+        const hold = /^hold\s/i.test(trigger);
+        if (hold) trigger = trigger.slice(4).trim();
+        if (hold && /\s/.test(trigger)) return error(i + 1, `hold works only on a single combo, not "${trigger}"`);
         const combo = parseCombo(trigger);
         if (!combo) return error(i + 1, `can't read trigger "${trigger}"`);
         const steps = parseSteps(line.slice(eq + 1), byId);
         if (typeof steps === "string") return error(i + 1, steps);
+        if (hold && steps.length > 1) return error(i + 1, "hold works only on a single step, not a macro");
+        if (hold && !byId.get(steps[0].actionId)!.holdable) return error(i + 1, `"${steps[0].actionId}" can't be held: it has no release`);
         const clash = checkConflicts(combo, trigger, i + 1);
         if (clash) return error(i + 1, clash);
-        bindings.push({ combo, trigger, steps });
+        bindings.push({ combo, trigger, hold, steps });
     });
+
+    /** Hold bindings whose key is down. */
+    const held = new Set<Binding>();
 
     return {
         problems,
         feed(e) {
-            if (e.type !== "keydown" || e.repeat) return [];
+            const release = (bs: Binding[]): Effect[] => bs.map(b => {
+                held.delete(b);
+                return { type: "release", trigger: b.trigger };
+            });
+            if (e.type === "blur") return release([...held]);
             const key = eventKey(e);
+            // A held key: its keyup releases, (auto-)repeats of it are swallowed. Modifiers may already be up.
+            const heldHere = [...held].filter(b => b.combo.key === key);
+            if (e.type === "keyup") return heldHere.length ? [...release(heldHere), { type: "swallow" }] : [];
+            if (heldHere.length) return [{ type: "swallow" }];
+            if (e.repeat) return [];
             const hit = bindings.find(({ combo: c }) =>
                 c.ctrl === e.ctrl && c.alt === e.alt && c.shift === e.shift && c.meta === e.meta && c.key === key);
             if (!hit) return [];
             // A bare key (no ctrl/alt/meta) shouldn't fire while typing.
             const bare = !hit.combo.ctrl && !hit.combo.alt && !hit.combo.meta;
             if (bare && e.inTextField) return [];
+            if (hit.hold) {
+                held.add(hit);
+                return [{ type: "hold", trigger: hit.trigger, step: hit.steps[0] }, { type: "swallow" }];
+            }
             return [{ type: "run", trigger: hit.trigger, steps: hit.steps }, { type: "swallow" }];
         }
     };

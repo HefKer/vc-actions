@@ -169,3 +169,66 @@ test("a trigger that is one of Discord's default shortcuts is a warning naming i
     assert.equal(run.type === "run" && run.steps[0].actionId, "stopstream");
     assert.equal(engine.feed(down("alt+ArrowDown"))[0].type, "run");
 });
+
+const holdActions: ActionMeta[] = [...actions, { id: "unmute", args: [], holdable: true }, { id: "deafen", args: [], holdable: true }];
+const up = (combo: string, extra: Partial<KeyInput> = {}) => ({ ...down(combo, extra), type: "keyup" } as KeyInput);
+
+test("a hold binding holds on keydown and releases on keyup of its key", () => {
+    const engine = createBindingEngine("hold ctrl+alt+m = unmute", holdActions);
+    assert.deepEqual(engine.problems, []);
+    assert.deepEqual(engine.feed(down("ctrl+alt+m")), [
+        { type: "hold", trigger: "ctrl+alt+m", step: { actionId: "unmute", args: {}, text: "unmute" } },
+        { type: "swallow" }
+    ]);
+    assert.deepEqual(engine.feed(up("ctrl+alt+m")), [{ type: "release", trigger: "ctrl+alt+m" }, { type: "swallow" }]);
+});
+
+test("blur releases every hold whose key is down, once", () => {
+    const engine = createBindingEngine("hold ctrl+alt+m = unmute\nhold ctrl+alt+d = deafen", holdActions);
+    engine.feed(down("ctrl+alt+m"));
+    engine.feed(down("ctrl+alt+d"));
+    assert.deepEqual(engine.feed({ type: "blur" }), [
+        { type: "release", trigger: "ctrl+alt+m" },
+        { type: "release", trigger: "ctrl+alt+d" }
+    ]);
+    assert.deepEqual(engine.feed({ type: "blur" }), []);
+    assert.deepEqual(engine.feed(up("ctrl+alt+m")), []);
+});
+
+test("key repeat while holding is swallowed and doesn't hold again", () => {
+    const engine = createBindingEngine("hold ctrl+alt+m = unmute", holdActions);
+    engine.feed(down("ctrl+alt+m"));
+    assert.deepEqual(engine.feed(down("ctrl+alt+m", { repeat: true })), [{ type: "swallow" }]);
+    assert.deepEqual(engine.feed(down("ctrl+alt+m")), [{ type: "swallow" }]);
+    assert.equal(engine.feed(up("ctrl+alt+m"))[0].type, "release");
+    assert.equal(engine.feed(down("ctrl+alt+m"))[0].type, "hold");
+});
+
+test("hold on a non-holdable action, a sequence or a macro is an error and the line is skipped", () => {
+    const engine = createBindingEngine([
+        "hold ctrl+alt+p = popout",
+        "hold ctrl+space m = unmute",
+        "hold ctrl+alt+m = unmute; deafen",
+        "HOLD  ctrl+alt+d = deafen"
+    ].join("\n"), holdActions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["error", 1], ["error", 2], ["error", 3]]);
+    assert.match(engine.problems[0].message, /popout.*can't be held/);
+    assert.match(engine.problems[1].message, /single combo/);
+    assert.match(engine.problems[2].message, /single step/);
+    assert.deepEqual(engine.feed(down("ctrl+alt+p")), []);
+    assert.deepEqual(engine.feed(down("ctrl+alt+m")), []);
+    assert.equal(engine.feed(down("ctrl+alt+d"))[0].type, "hold");
+});
+
+test("a holdable action bound without hold just runs", () => {
+    const engine = createBindingEngine("ctrl+alt+m = unmute", holdActions);
+    assert.deepEqual(engine.feed(down("ctrl+alt+m"))[0].type, "run");
+    assert.deepEqual(engine.feed(up("ctrl+alt+m")), []);
+});
+
+test("a hold releases on keyup of its key even after its modifiers went up first", () => {
+    const engine = createBindingEngine("hold ctrl+alt+m = unmute", holdActions);
+    engine.feed(down("ctrl+alt+m"));
+    assert.deepEqual(engine.feed(up("ctrl", { key: "Control", code: "ControlLeft", ctrl: false, alt: true })), []);
+    assert.deepEqual(engine.feed(up("m")), [{ type: "release", trigger: "ctrl+alt+m" }, { type: "swallow" }]);
+});
