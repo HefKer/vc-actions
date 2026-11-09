@@ -19,6 +19,7 @@ import { PresetsMissing } from "./lib/presets";
 import { ResolveError } from "./lib/resolve";
 import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
 import { resolveUserArgs } from "./lib/users";
+import { startVoiceTracking, stopVoiceTracking } from "./lib/voice";
 import { attachToWindows } from "./lib/windows";
 import type { Action, ActionArg, ActionContext, Release } from "./registry";
 
@@ -236,6 +237,7 @@ export default definePlugin({
 
     start() {
         reloadBindings();
+        startVoiceTracking();
         detachWindows = attachToWindows({ keydown: onKey, keyup: onKey, blur: onBlur });
     },
 
@@ -243,6 +245,7 @@ export default definePlugin({
         detachWindows?.();
         detachWindows = undefined;
         hideHint = undefined;
+        stopVoiceTracking();
         for (const trigger of [...holds.keys()]) release(trigger);
         disposeOverlays();
         engine = null;

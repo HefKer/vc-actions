@@ -8,6 +8,7 @@ import type { Action } from "../registry";
 import camera from "./camera";
 import deafen from "./deafen";
 import focustile from "./focustile";
+import goToCall from "./goToCall";
 import help from "./help";
 import mute from "./mute";
 import popout from "./popout";
@@ -19,6 +20,8 @@ import stream from "./stream";
 import streamToggle from "./streamToggle";
 import unmute from "./unmute";
 import unwatch from "./unwatch";
+import vcJoin from "./vcJoin";
+import vcLeave from "./vcLeave";
 import watch from "./watch";
 
 /** Every action. Adding one: write actions/<name>.ts, import it here, list it below. */
@@ -38,4 +41,7 @@ export const actions: Action[] = [
     help,
     camera,
     soundboard,
+    vcJoin,
+    vcLeave,
+    goToCall,
 ];
