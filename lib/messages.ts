@@ -434,12 +434,12 @@ export function jumpToMessage(channelId: string, messageId: string, returnMessag
     MessageActions.jumpToMessage({ channelId, messageId, flash: true, returnMessageId });
 }
 
-/** The nearest element around `el` that scrolls vertically: the chat's scroller for a message. */
+/** The nearest element around `el` that can scroll vertically: the chat's scroller for a message (a short chat's too). */
 export function scrollerOf(el: Element): HTMLElement | undefined {
     const win = el.ownerDocument.defaultView ?? window;
     for (let at = el.parentElement; at; at = at.parentElement) {
         const { overflowY } = win.getComputedStyle(at);
-        if ((overflowY === "auto" || overflowY === "scroll") && at.scrollHeight > at.clientHeight) return at;
+        if (overflowY === "auto" || overflowY === "scroll") return at;
     }
 }
 
