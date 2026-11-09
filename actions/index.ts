@@ -5,13 +5,17 @@
  */
 
 import type { Action } from "../registry";
+import deafen from "./deafen";
 import goToCall from "./goToCall";
+import help from "./help";
+import mute from "./mute";
 import popout from "./popout";
 import presetNext from "./presetNext";
 import retarget from "./retarget";
 import stopStream from "./stopStream";
 import stream from "./stream";
 import streamToggle from "./streamToggle";
+import unmute from "./unmute";
 import vcJoin from "./vcJoin";
 import vcLeave from "./vcLeave";
 
@@ -23,6 +27,10 @@ export const actions: Action[] = [
     streamToggle,
     presetNext,
     popout,
+    mute,
+    unmute,
+    deafen,
+    help,
     vcJoin,
     vcLeave,
     goToCall,

@@ -13,6 +13,10 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `streamtoggle` | | `streamtoggle <preset>`: start streaming with that preset if you're not live; if you are, stop, whatever preset the stream uses |
 | `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
+| `mute` | | Mute your mic. Holdable: released, your mute goes back to what it was (push-to-mute) |
+| `unmute` | | Unmute your mic, and undeafen like Discord's own unmute. Holdable: released, both go back (push-to-talk) |
+| `deafen` | | Deafen yourself. Holdable: released, deafen goes back to what it was |
+| `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader. Any key closes it; Esc is swallowed |
 | `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
 | `vcleave` | | Leave voice; just says so if you're not in voice |
 | `gotocall` | | Open the call view of your voice channel |
@@ -36,9 +40,10 @@ ctrl+alt+2 = retarget Browser
 ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
 ctrl+alt+g = stream Gaming; popout
+ctrl+alt+h = help
 ```
 
-Grammar: `<combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
+Grammar: `[hold] <combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
 its args in order; the last arg takes the rest of the step, so preset names can have spaces. `;` always
 separates steps, so args can't contain it. A binding with several steps (a macro) runs them in order, each
 waiting for the previous one to finish; the first failing step stops the rest and its error names the step.
@@ -53,6 +58,11 @@ Problems are logged and shown in a toast when you change the setting. A bad line
 earlier line is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
 default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
 Discord's. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
+
+**Hold bindings:** `hold ctrl+alt+m = unmute` runs the action on press and undoes it on release: when the key
+(not its modifiers) goes up, when the window loses focus, or when the plugin stops. Key repeat while holding is
+ignored. `hold` takes a single combo and a single step, and only a holdable action (`mute`, `unmute`, `deafen`);
+anything else is reported as an error and the line is skipped. Discord's own mute/deafen binds only toggle.
 
 ## Names
 
@@ -85,6 +95,8 @@ VcActions (Discord doesn't keep it) and saved in Vencord's DataStore.
 
 `reply` posts a bot message for slash commands and shows the overlay (in the window the key was pressed in) for hotkeys. Throw an `Error` to report a failure.
 Arg `type: "user"` gives a user picker, and in bindings an id or name that reaches `run` as an id; `choices: () => string[]` offers values while typing.
+`holdable: true` lets hold bindings use the action: its `run` then returns a release callback that undoes it
+(a slash command or a plain binding just drops it).
 
 ## How pop-out works
 
