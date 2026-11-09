@@ -5,7 +5,6 @@
  */
 
 import type { Channel, Message } from "@vencord/discord-types";
-import { MessageFlags } from "@vencord/discord-types/enums";
 import { findByCodeLazy, findByPropsLazy, findLazy } from "@webpack";
 import {
     ChannelActionCreators, ChannelStore, closeModal, ComponentDispatch, EmojiStore, FluxDispatcher, GuildStore, MessageActions,
@@ -16,6 +15,9 @@ import { logger, myId } from "./discord";
 import { parseEmojiArg } from "./emojiArg";
 import { UserError } from "./errors";
 import { type Candidate, resolveName } from "./resolve";
+
+/** MessageFlags.EPHEMERAL; @vencord/discord-types/enums doesn't resolve from this symlinked plugin (see lib/streams.ts). */
+const EPHEMERAL = 1 << 6;
 
 /**
  * Discord's message-level actions, as its own UI does them: reply (the hover toolbar's Reply), the reaction
@@ -61,7 +63,7 @@ export function getMessage(channelId: string, messageId: string): Message | unde
 export function newestMessage(): Message {
     const channelId = SelectedChannelStore.getChannelId();
     if (!channelId) throw new UserError("Open a channel first.");
-    const msg = loadedMessages(channelId).findLast(m => !m.hasFlag(MessageFlags.EPHEMERAL));
+    const msg = loadedMessages(channelId).findLast(m => !m.hasFlag(EPHEMERAL));
     if (!msg) throw new UserError("No messages here.");
     return msg;
 }
@@ -78,7 +80,7 @@ function channelOf(message: Message): Channel {
  */
 export function replyTo(message: Message, mention: boolean) {
     const channel = channelOf(message);
-    if (!MessageTypeSets.REPLYABLE.has(message.type) || message.hasFlag(MessageFlags.EPHEMERAL))
+    if (!MessageTypeSets.REPLYABLE.has(message.type) || message.hasFlag(EPHEMERAL))
         throw new UserError("Can't reply to that message.");
     if (channel.guild_id && !PermissionStore.can(PermissionsBits.SEND_MESSAGES, channel))
         throw new UserError("You can't send messages here.");
@@ -208,7 +210,7 @@ async function sendForward(message: Message, destId: string) {
 }
 
 export function canForward(message: Message) {
-    return MessageTypeSets.FORWARDABLE.has(message.type) && !message.hasFlag(MessageFlags.EPHEMERAL);
+    return MessageTypeSets.FORWARDABLE.has(message.type) && !message.hasFlag(EPHEMERAL);
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
