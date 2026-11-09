@@ -28,6 +28,8 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
 | `vcleave` | | Leave voice; just says so if you're not in voice |
 | `gotocall` | | Open the call view of your voice channel |
+| `plugins` | | Open Vencord's Plugins page in Discord's settings |
+| `pluginsettings` | | `pluginsettings VcPresets` opens that plugin's settings, like its cog in the Plugins page. Choices (and palette entries) are the enabled plugins; any plugin shown in the Plugins page matches by name |
 | `palette` | | Fuzzy command palette in the window you pressed it in (pop-outs too); see [Palette](#palette) |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through

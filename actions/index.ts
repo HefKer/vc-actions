@@ -13,6 +13,8 @@ import help from "./help";
 import localmute from "./localmute";
 import mute from "./mute";
 import palette from "./palette";
+import plugins from "./plugins";
+import pluginsettings from "./pluginsettings";
 import popout from "./popout";
 import preset from "./preset";
 import retarget from "./retarget";
@@ -49,5 +51,7 @@ export const actions: Action[] = [
     vcjoin,
     vcleave,
     gotocall,
+    plugins,
+    pluginsettings,
     palette,
 ];
