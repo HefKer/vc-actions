@@ -38,6 +38,8 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `favpick` | | Fuzzy-pick one of your favorite servers (see `favtoggle`) and go there; the palette's picker, in the window you pressed it in. See [Pickers](#pickers) |
 | `userpick` | | Fuzzy-pick someone from your DMs and friends and open your DM with them; see [Pickers](#pickers) |
 | `repeat` | | Run again, in the window you pressed it in, the steps the last binding or palette pick ran (a whole macro, args as typed, so names are matched again). Not kept: hold bindings, [event hooks](#event-hooks), slash commands (no window to run in), and any run with `repeat` in it, so `repeat` never repeats itself. Opening the palette counts as a run until you pick something; left out of the palette, where it would only reopen it. Forgotten when the plugin stops |
+| `unread` | `/unread <which>` | `unread next` / `unread prev`: go to the next / previous unread channel, `unread mention`: the next channel with mentions; see [Unread and notifications](#unread-and-read-state). "No unread channels." when there's none |
+| `markread` | `/markread <what>` | `markread channel` / `server` / `all`: mark the channel you're in, the server you're viewing, or every server and DM as read, like Discord's own Mark As Read |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -45,6 +47,23 @@ VcPresets doesn't say which preset is live, so `preset next` counts from the pre
 retargeted to (the first preset if none yet); a stream started from VcPresets' own UI isn't seen.
 
 Setting **Auto pop-out**: when you start watching a friend's stream, it's popped out.
+
+## Unread and read state
+
+`unread` walks the way Discord's own Alt+Shift+Down/Up (and Ctrl+Shift+Alt+Down/Up for mentions) does: the channels
+after (prev: before) the one you're in, in sidebar order (`ChannelListStore`'s shown channels, joined threads
+included), then the other places in server-list order (DMs first, then every server as the server list shows it,
+folders flattened), wrapping around, and last the rest of the current server from the other end. Pure walk in `lib/unread.ts`. What counts as unread follows Discord's predicate: a muted
+server is skipped (unless you're in it); a text channel counts if it has a mention, or if it's unread, not muted (nor
+its category, which Discord's own shortcut doesn't check) and set to show unread for all messages; DMs and voice
+channels count only with a mention (an unread DM is one), or your own voice channel with unread chat. `unread mention`
+counts any channel with mentions, muted servers included. Server events and onboarding questions, which Discord's
+shortcut also stops at, are skipped.
+
+`markread` dispatches what Discord's Mark As Read does: `channel` a forced `CHANNEL_ACK` (forum channels ack up to
+now), `server` a `BULK_ACK` of every channel, joined thread, server events and onboarding questions (what the server
+menu's Mark As Read builds), `all` the same for every server plus every DM and group DM. ReadStateStore keeps the
+unread ones and syncs them to Discord in batches, so `all` on many servers takes a few seconds to reach other devices.
 
 ## Hotkeys
 
@@ -248,6 +267,8 @@ Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: 
 
 Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
 cycling, favorites, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette entries and ranking,
+cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 

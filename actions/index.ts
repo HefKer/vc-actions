@@ -35,6 +35,8 @@ import volume from "./volume";
 import watch from "./watch";
 import status from "./status";
 import customstatus from "./customstatus";
+import unread from "./unread";
+import markread from "./markread";
 
 /** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
@@ -68,4 +70,6 @@ export const actions: Action[] = [
     favpick,
     userpick,
     repeat,
+    unread,
+    markread,
 ];
