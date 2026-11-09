@@ -8,32 +8,32 @@ import type { Action } from "../registry";
 import camera from "./camera";
 import deafen from "./deafen";
 import focustile from "./focustile";
-import goToCall from "./goToCall";
+import gotocall from "./gotocall";
 import help from "./help";
-import localMute from "./localMute";
+import localmute from "./localmute";
 import mute from "./mute";
 import palette from "./palette";
 import popout from "./popout";
-import presetNext from "./presetNext";
+import preset from "./preset";
 import retarget from "./retarget";
 import soundboard from "./soundboard";
-import stopStream from "./stopStream";
+import stopstream from "./stopstream";
 import stream from "./stream";
-import streamToggle from "./streamToggle";
+import streamtoggle from "./streamtoggle";
 import unmute from "./unmute";
 import unwatch from "./unwatch";
-import vcJoin from "./vcJoin";
-import vcLeave from "./vcLeave";
+import vcjoin from "./vcjoin";
+import vcleave from "./vcleave";
 import volume from "./volume";
 import watch from "./watch";
 
-/** Every action. Adding one: write actions/<name>.ts, import it here, list it below. */
+/** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
     stream,
-    stopStream,
+    stopstream,
     retarget,
-    streamToggle,
-    presetNext,
+    streamtoggle,
+    preset,
     popout,
     watch,
     unwatch,
@@ -42,12 +42,12 @@ export const actions: Action[] = [
     unmute,
     deafen,
     volume,
-    localMute,
+    localmute,
     help,
     camera,
     soundboard,
-    vcJoin,
-    vcLeave,
-    goToCall,
+    vcjoin,
+    vcleave,
+    gotocall,
     palette,
 ];

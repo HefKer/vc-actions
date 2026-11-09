@@ -23,7 +23,7 @@ function paletteActions(actions: readonly Action[]): PaletteAction[] {
             return [];
         }
     };
-    return actions.filter(a => a.id !== "palette").map(a => ({
+    return actions.filter(a => !a.hideInPalette).map(a => ({
         id: a.id,
         description: a.description,
         args: (a.args ?? []).map(arg => ({
@@ -52,12 +52,16 @@ function Row({ match, selected }: { match: PaletteMatch; selected: boolean; }) {
     );
 }
 
-function Palette({ entries, close, run }: { entries: PaletteEntry[]; close(): void; run(text: string): void; }) {
+/** `gone` runs when the palette unmounts, however that happens (closed, or replaced in its slot by `help`). */
+function Palette({ entries, close, run, gone }: { entries: PaletteEntry[]; close(): void; run(text: string): void; gone(): void; }) {
     const [query, setQuery] = useState("");
     const [sel, setSel] = useState(0);
     const input = useRef<HTMLInputElement>(null);
     const matches = useMemo(() => rankEntries(query, entries), [query, entries]);
-    useEffect(() => input.current?.focus(), []);
+    useEffect(() => {
+        input.current?.focus();
+        return gone;
+    }, []);
 
     const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         const handled = () => {
@@ -120,20 +124,20 @@ function Palette({ entries, close, run }: { entries: PaletteEntry[]; close(): vo
 
 export default defineAction({
     id: "palette",
+    hideInPalette: true,
     description: "Fuzzy-find and run any binding or action × choice, in the window you're in",
     run({ win = window, bindings = [], actions = [], runSteps, reply }) {
         if (!runSteps) return reply("The palette only opens from a binding.", "error");
         const doc = win.document;
         const before = doc.activeElement as HTMLElement | null;
         const entries = buildEntries(bindings, paletteActions(actions));
-        let hide: (() => void) | null = null;
-        const close = () => {
-            if (!hide) return;
-            hide();
-            hide = null;
-            // Back to where you were typing, so the palette leaves no trace.
+        // Back to where you were typing, so the palette leaves no trace.
+        const gone = () => {
             if (before?.isConnected) before.focus();
         };
-        hide = overlay(doc).show(<Palette entries={entries} close={close} run={text => { runSteps(text); }} />, { duration: null });
+        const close = overlay(doc, "panel").show(
+            <Palette entries={entries} close={() => close()} run={text => { runSteps(text); }} gone={gone} />,
+            { duration: null }
+        );
     }
 });

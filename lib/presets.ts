@@ -6,7 +6,8 @@
 
 import { isPluginEnabled } from "@api/PluginManager";
 
-import { resolveName } from "./resolve";
+import { UserError } from "./errors";
+import { ResolveError, resolveName } from "./resolve";
 
 /** VcPresets' runtime API (../vc-presets). Looked up at call time, never imported. */
 export interface VcPresetsApi {
@@ -17,7 +18,8 @@ export interface VcPresetsApi {
     retarget(name: string): Promise<void>;
 }
 
-export class PresetsMissing extends Error { }
+/** VcPresets missing, disabled, too old, or with no presets. */
+export class PresetsMissing extends UserError { }
 
 function raw(): VcPresetsApi | undefined {
     return (window as any).Vencord?.Plugins?.plugins?.VcPresets;
@@ -60,6 +62,6 @@ export function resolvePreset(input: string | undefined): string {
     const names = presets().listPresets().map(p => p.name);
     if (!names.length) throw new PresetsMissing("No presets saved yet: add one in VcPresets.");
     const r = resolveName(input, names.map(n => ({ names: [n], value: n })), "preset");
-    if (!r.ok) throw new PresetsMissing(r.error);
+    if (!r.ok) throw new ResolveError(r.error);
     return r.value;
 }

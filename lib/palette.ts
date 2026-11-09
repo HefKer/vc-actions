@@ -6,7 +6,7 @@
 
 /** The `palette`'s entries and fuzzy ranking. Pure, so it's unit tested; actions/palette.tsx draws it. */
 
-import type { BindingInfo } from "./cheatsheet";
+import type { BindingInfo } from "./bindings";
 
 /** One choice for an arg: shown as `label`, written into the step as `value` (a user's id, a preset's name). */
 export interface PaletteChoice {
@@ -34,9 +34,12 @@ export interface PaletteEntry {
     open: boolean;
 }
 
-/** Your bindings first (with their triggers), then every action × its first arg's choices. */
+/**
+ * Your bindings first (with their triggers), then every action × its first arg's choices. Hold bindings are left
+ * out: run from the palette there's no key to let go of, so they'd stay on.
+ */
 export function buildEntries(bindings: readonly BindingInfo[], actions: readonly PaletteAction[]): PaletteEntry[] {
-    const out: PaletteEntry[] = bindings.map(b => {
+    const out: PaletteEntry[] = bindings.filter(b => !b.hold).map(b => {
         const text = b.steps.join("; ");
         return { label: text, text, trigger: b.trigger, open: false };
     });

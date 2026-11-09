@@ -24,6 +24,14 @@ test("bindings come first, showing their trigger, then each action", () => {
     ]);
 });
 
+test("hold bindings are left out: the palette has no key to let go of", () => {
+    const entries = buildEntries(
+        [{ trigger: "ctrl+alt+m", steps: ["unmute"], hold: true }, { trigger: "ctrl+alt+p", steps: ["popout"] }],
+        []
+    );
+    assert.deepEqual(entries.map(e => e.trigger), ["ctrl+alt+p"]);
+});
+
 test("an action's first arg with choices gives one entry per choice; later args stay open for free text", () => {
     const entries = buildEntries([], [
         { id: "stream", args: [{ name: "preset", choices: [{ label: "Gaming", value: "Gaming" }, { label: "Browser", value: "Browser" }] }] },

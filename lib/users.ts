@@ -7,7 +7,14 @@
 import { ChannelStore, GuildMemberStore, RelationshipStore, SelectedChannelStore, UserStore, VoiceStateStore } from "@webpack/common";
 
 import type { Action } from "../registry";
+import { myId } from "./discord";
 import { type Candidate, ResolveError, resolveUser } from "./resolve";
+
+/** The server of your voice channel, where nicknames come from (null in a DM call or out of voice). */
+function voiceGuildId(): string | null {
+    const vcId = SelectedChannelStore.getVoiceChannelId();
+    return vcId ? ChannelStore.getChannel(vcId)?.guild_id ?? null : null;
+}
 
 function userNames(userId: string, guildId: string | null | undefined): string[] {
     const u = UserStore.getUser(userId);
@@ -20,23 +27,28 @@ function userNames(userId: string, guildId: string | null | undefined): string[]
     return [...new Set(names.filter((n): n is string => !!n))];
 }
 
-/** People in your voice channel (tier 0), then friends not in it (tier 1). */
+/** People in your voice channel (tier 0), then friends not in it (tier 1); never yourself. */
 export function userCandidates(): Candidate<string>[] {
     const vcId = SelectedChannelStore.getVoiceChannelId();
-    const guildId = vcId ? ChannelStore.getChannel(vcId)?.guild_id : null;
+    const guildId = voiceGuildId();
     const inCall = vcId ? Object.keys(VoiceStateStore.getVoiceStatesForChannel(vcId) ?? {}) : [];
+    const me = myId();
     const seen = new Set(inCall);
     const friends = RelationshipStore.getFriendIDs().filter(id => !seen.has(id));
     return [
         ...inCall.map(id => ({ names: userNames(id, guildId), value: id, tier: 0 })),
         ...friends.map(id => ({ names: userNames(id, null), value: id, tier: 1 }))
-    ].filter(c => c.names.length);
+    ].filter(c => c.names.length && c.value !== me);
 }
 
 /** The other people in your voice channel as palette choices: their first name shown, their id written. */
 export function participantChoices(): { label: string; value: string; }[] {
-    const me = UserStore.getCurrentUser()?.id;
-    return userCandidates().filter(c => c.tier === 0 && c.value !== me).map(c => ({ label: c.names[0], value: c.value }));
+    return userCandidates().filter(c => c.tier === 0).map(c => ({ label: c.names[0], value: c.value }));
+}
+
+/** How we name a user in messages: their nickname in your voice channel's server, friend nickname, display name or username. */
+export function displayName(userId: string): string {
+    return userNames(userId, voiceGuildId())[0] ?? userId;
 }
 
 /** A user arg (id, mention or name) as a user id, or throws ResolveError listing the candidates. */

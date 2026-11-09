@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Logger } from "@utils/Logger";
 import { findByCodeLazy, findByPropsLazy } from "@webpack";
-import { ApplicationStreamingStore, ChannelRTCStore, ChannelStore, FluxDispatcher, PopoutWindowStore, SelectedChannelStore, UserStore } from "@webpack/common";
+import { ApplicationStreamingStore, ChannelRTCStore, ChannelStore, PopoutWindowStore, SelectedChannelStore } from "@webpack/common";
 
 import { nextAfter, prevBefore } from "./cycle";
+import { callOrDispatch, logger, myId } from "./discord";
+import { UserError } from "./errors";
+import { displayName } from "./users";
 
 /** Mirrors @vencord/discord-types/enums ParticipantType; that package doesn't resolve from this symlinked plugin. */
 const ParticipantType = { STREAM: 0, USER: 2 } as const;
-
-const logger = new Logger("VcActions");
 
 interface StreamRef {
     streamType: string;
@@ -44,7 +44,8 @@ const closeStream: (streamKey: string, canShowFeedback?: boolean) => void =
 const RTCActions: { selectParticipant(channelId: string, id: string | null): void; } =
     findByPropsLazy("selectParticipant", "popoutParticipant");
 
-export class StreamError extends Error { }
+/** Not in voice, nobody streaming and the like. */
+export class StreamError extends UserError { }
 
 export function encodeStreamKey(s: StreamRef): string {
     return s.guildId != null
@@ -74,25 +75,15 @@ export function isPoppedOut(s: StreamRef): boolean {
 
 export function popOut(s: StreamRef) {
     const key = encodeStreamKey(s);
-    try {
-        openCallTilePopout(s.channelId, key);
-    } catch (e) {
-        // The action creator moved; the Flux action it dispatches is still Discord's own code path.
-        logger.warn("openCallTilePopout not found, dispatching CALL_TILE_POPOUT_WINDOW_OPEN directly", e);
-        FluxDispatcher.dispatch({ type: "CALL_TILE_POPOUT_WINDOW_OPEN", channelId: s.channelId, participantId: key });
-    }
+    callOrDispatch("openCallTilePopout", () => openCallTilePopout(s.channelId, key),
+        { type: "CALL_TILE_POPOUT_WINDOW_OPEN", channelId: s.channelId, participantId: key });
 }
 
 /** Pop out the call view of your voice channel, like the call view's own Pop Out button. */
 export function popOutCall() {
     const channel = ChannelStore.getChannel(myVoiceChannel());
     if (!channel) throw new StreamError("Can't find your voice channel.");
-    try {
-        openChannelCallPopout(channel);
-    } catch (e) {
-        logger.warn("openChannelCallPopout not found, dispatching CHANNEL_CALL_POPOUT_WINDOW_OPEN directly", e);
-        FluxDispatcher.dispatch({ type: "CHANNEL_CALL_POPOUT_WINDOW_OPEN", channel });
-    }
+    callOrDispatch("openChannelCallPopout", () => openChannelCallPopout(channel), { type: "CHANNEL_CALL_POPOUT_WINDOW_OPEN", channel });
 }
 
 /** Whether you're streaming (Go Live) right now, whoever started it. */
@@ -141,7 +132,7 @@ function watchedKey(channelId: string, keys: string[]): string | undefined {
  */
 export function watchStep(dir: "next" | "prev"): string {
     const vc = myVoiceChannel();
-    const me = UserStore.getCurrentUser()?.id;
+    const me = myId();
     // getStreamParticipants is the call grid's own sorted index filtered to stream tiles, so it's tile order.
     const tiles = ChannelRTCStore.getStreamParticipants(vc).filter(p => p.stream.ownerId !== me);
     const keys = tiles.map(p => p.id);
@@ -149,24 +140,19 @@ export function watchStep(dir: "next" | "prev"): string {
     const tile = tiles.find(p => p.id === key);
     if (!tile) throw new StreamError("Nobody in your voice channel is streaming.");
     watchStream(tile.stream);
-    return tile.userNick || tile.user.globalName || tile.user.username;
+    return displayName(tile.user.id);
 }
 
 /** Stop watching the stream you're watching (the focused one if you watch several). */
 export function unwatch() {
-    const me = UserStore.getCurrentUser()?.id;
+    const me = myId();
     const keys = ApplicationStreamingStore.getAllActiveStreams()
         .filter(s => s.ownerId !== me)
         .map(s => encodeStreamKey(s));
     const vc = SelectedChannelStore.getVoiceChannelId();
     const key = (vc && watchedKey(vc, keys)) || keys[0];
     if (!key) throw new StreamError("You're not watching a stream.");
-    try {
-        closeStream(key);
-    } catch (e) {
-        logger.warn("closeStream not found, dispatching STREAM_CLOSE directly", e);
-        FluxDispatcher.dispatch({ type: "STREAM_CLOSE", streamKey: key, canShowFeedback: true });
-    }
+    callOrDispatch("closeStream", () => closeStream(key), { type: "STREAM_CLOSE", streamKey: key, canShowFeedback: true });
 }
 
 /** Make a user's tile the main view of the call: their stream tile if they stream, else their user (camera) tile. */
@@ -176,10 +162,6 @@ export function focusTile(userId: string, name: string) {
     const tile = parts.find(p => p.type === ParticipantType.STREAM && p.user.id === userId)
         ?? parts.find(p => p.type === ParticipantType.USER && p.id === userId);
     if (!tile) throw new StreamError(`${name} isn't in your voice channel.`);
-    try {
-        RTCActions.selectParticipant(vc, tile.id);
-    } catch (e) {
-        logger.warn("selectParticipant not found, dispatching CHANNEL_RTC_SELECT_PARTICIPANT directly", e);
-        FluxDispatcher.dispatch({ type: "CHANNEL_RTC_SELECT_PARTICIPANT", channelId: vc, id: tile.id });
-    }
+    callOrDispatch("selectParticipant", () => RTCActions.selectParticipant(vc, tile.id),
+        { type: "CHANNEL_RTC_SELECT_PARTICIPANT", channelId: vc, id: tile.id });
 }

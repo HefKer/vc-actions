@@ -351,6 +351,14 @@ test("bindings lists the loaded bindings as written, bad lines left out", () => 
     ]);
 });
 
+test("bindings marks hold bindings", () => {
+    const engine = createBindingEngine("hold ctrl+alt+m = unmute\nctrl+alt+d = deafen", holdActions);
+    assert.deepEqual(engine.bindings, [
+        { trigger: "ctrl+alt+m", steps: ["unmute"], hold: true },
+        { trigger: "ctrl+alt+d", steps: ["deafen"] }
+    ]);
+});
+
 test("parseSteps reads step text as a binding's right side would be, for the palette", () => {
     const engine = createBindingEngine("", actions);
     assert.deepEqual(engine.parseSteps("volume alice +20; popout"), [

@@ -9,7 +9,7 @@ import { defineAction } from "../registry";
 
 export default defineAction({
     id: "deafen",
-    description: "Deafen yourself; held, undeafen again on release",
+    description: "Deafen yourself; held, deafen goes back to what it was on release",
     holdable: true,
     run: () => holdSelfAudio({ deaf: true })
 });

@@ -6,37 +6,37 @@
 
 import { ApplicationCommandInputType, ApplicationCommandOptionType, sendBotMessage } from "@api/Commands";
 import { definePluginSettings } from "@api/Settings";
-import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { CommandOption } from "@vencord/discord-types";
-import { React, RelationshipStore, UserStore } from "@webpack/common";
+import { React, RelationshipStore } from "@webpack/common";
 
 import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
+import { logger, myId } from "./lib/discord";
+import { UserError } from "./lib/errors";
 import { WhichKeyHint } from "./lib/hint";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
-import { PresetsMissing } from "./lib/presets";
-import { ResolveError } from "./lib/resolve";
-import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
+import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
 import { resolveUserArgs } from "./lib/users";
 import { startVoiceTracking, stopVoiceTracking } from "./lib/voice";
 import { attachToWindows } from "./lib/windows";
 import type { Action, ActionArg, ActionContext, Release } from "./registry";
 
-const logger = new Logger("VcActions");
 const byId = new Map(actions.map(a => [a.id, a]));
-
-const defaultHotkeys = actions.filter(a => a.defaultHotkey).map(a => `${a.defaultHotkey} = ${a.id}`).join("\n");
 
 const settings = definePluginSettings({
     hotkeys: {
         type: OptionType.STRING,
         multiline: true,
-        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, `;` between steps, a sequence as space-separated combos (`ctrl+space p a = popout alice`), `hold combo = action` to undo it on release. "
-            + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+p = popout, ctrl+alt+1 = stream Gaming. # starts a comment.`,
+        description: "In-app bindings (Vesktop focused), one per line: `[hold] trigger = step; step`. A trigger is a combo (`ctrl+alt+p`) or a sequence of space-separated combos (`ctrl+space p a`); a step is `action args`; `hold` (one combo, one step) undoes the action on release. "
+            + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+g = stream Gaming; popout. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
-        default: defaultHotkeys,
-        onChange: () => reloadBindings(true)
+        // No bindings by default (AGENTS.md).
+        default: "",
+        // Settings can change while the plugin is stopped; then there's nothing to reload.
+        onChange: () => {
+            if (running) reloadBindings(ANNOUNCE_DELAY);
+        }
     },
     autoPopout: {
         type: OptionType.BOOLEAN,
@@ -63,8 +63,8 @@ async function runAction(action: Action, ctx: ActionContext, prefix = ""): Promi
         const release = await action.run({ ...ctx, args: resolveUserArgs(action, ctx.args), reply }) ?? undefined;
         return failed ? { ok: false, release } : { ok: true, release };
     } catch (e) {
-        // Known failures (missing VcPresets, no stream, unknown name) get their message; anything else gets logged too.
-        if (!(e instanceof PresetsMissing || e instanceof StreamError || e instanceof ResolveError)) logger.error(`action ${action.id} failed`, e);
+        // Expected failures (missing VcPresets, no stream, unknown name) get their message; anything else gets logged too.
+        if (!(e instanceof UserError)) logger.error(`action ${action.id} failed`, e);
         ctx.reply(prefix + (e instanceof Error ? e.message : String(e)), "error");
         return { ok: false };
     }
@@ -111,17 +111,33 @@ const commands = actions.filter(a => a.command).map(a => ({
 
 const actionMeta = actions.map(a => ({ id: a.id, args: (a.args ?? []).map(arg => arg.name), holdable: a.holdable }));
 let engine: BindingEngine | null = null;
+let running = false;
 let detachWindows: (() => void) | undefined;
 
-function reloadBindings(announce = false) {
+/** Typing in the setting reloads on every keystroke; problems wait this long after the last one. */
+const ANNOUNCE_DELAY = 1500;
+let announceTimer: ReturnType<typeof setTimeout> | undefined;
+/** The problems last shown, so the same set isn't shown again. */
+let announced = "";
+
+/** Load the setting now; show its problems after `delay` ms, once per change of the problems found. */
+function reloadBindings(delay = 0) {
     endHint();
-    engine =createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
+    // The new engine doesn't know the old one's holds, so their keyup would never release them: let go now.
+    for (const trigger of [...holds.keys()]) release(trigger);
+    engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
     const { problems } = engine;
-    if (!problems.length) return;
-    const lines = problems.map(p => `line ${p.line} ${p.severity}: ${p.message}`);
-    logger.warn("hotkeys setting:", lines);
-    // Once per settings change, not per keypress. Errors skip their line; warnings are still bound.
-    if (announce) overlay().show(`VcActions hotkeys: ${lines.join("; ")}`, { kind: problems.some(p => p.severity === "error") ? "error" : "info" });
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(() => {
+        const lines = problems.map(p => `line ${p.line} ${p.severity}: ${p.message}`);
+        const text = lines.join("; ");
+        if (text === announced) return;
+        announced = text;
+        if (!lines.length) return;
+        logger.warn("hotkeys setting:", lines);
+        // Errors skip their line; warnings are still bound.
+        overlay().show(`VcActions hotkeys: ${text}`, { kind: problems.some(p => p.severity === "error") ? "error" : "info" });
+    }, delay);
 }
 
 /** Run a binding's steps in order, each waiting for the last; the first failure stops the rest and names its step. */
@@ -197,7 +213,7 @@ function apply(effects: Effect[], e: Event, win: Window) {
             case "hint":
                 endHint();
                 // No timeout: it stays until the sequence runs or is cancelled (#15 story 8).
-                hideHint = overlay(win.document).show(React.createElement(WhichKeyHint, { keys: effect.keys, next: effect.next }), { duration: null });
+                hideHint = overlay(win.document, "hint").show(React.createElement(WhichKeyHint, { keys: effect.keys, next: effect.next }), { duration: null });
                 break;
             case "cancel":
                 endHint();
@@ -237,7 +253,7 @@ export default definePlugin({
         STREAM_WATCH({ streamKey }: { streamKey: string; }) {
             if (!settings.store.autoPopout) return;
             const s = decodeStreamKey(streamKey);
-            if (!s || s.ownerId === UserStore.getCurrentUser()?.id || !RelationshipStore.isFriend(s.ownerId)) return;
+            if (!s || s.ownerId === myId() || !RelationshipStore.isFriend(s.ownerId)) return;
             // Let the watch land and the tile appear before popping it out.
             setTimeout(() => {
                 if (!isPoppedOut(s)) popOut(s);
@@ -246,15 +262,19 @@ export default definePlugin({
     },
 
     start() {
+        running = true;
         reloadBindings();
         startVoiceTracking();
         detachWindows = attachToWindows({ keydown: onKey, keyup: onKey, blur: onBlur });
     },
 
     stop() {
+        running = false;
         detachWindows?.();
         detachWindows = undefined;
         hideHint = undefined;
+        clearTimeout(announceTimer);
+        announced = "";
         stopVoiceTracking();
         for (const trigger of [...holds.keys()]) release(trigger);
         disposeOverlays();

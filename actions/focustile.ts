@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { UserStore } from "@webpack/common";
-
 import { focusTile, StreamError } from "../lib/streams";
+import { displayName } from "../lib/users";
 import { defineAction } from "../registry";
 
 export default defineAction({
@@ -17,8 +16,7 @@ export default defineAction({
     run({ args, reply }) {
         const id = args.user;
         if (!id) throw new StreamError("Whose tile? Give a user.");
-        const user = UserStore.getUser(id);
-        const name = user?.globalName ?? user?.username ?? id;
+        const name = displayName(id);
         focusTile(id, name);
         reply(`Focused ${name}.`, "success");
     }

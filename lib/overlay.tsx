@@ -8,12 +8,17 @@ import { createRoot } from "@webpack/common";
 import type { ReactNode } from "react";
 
 /**
- * Our own overlay (ADR 0001): one small box drawn into a given window's document, because Discord's
- * toasts and modals only show in the main window. Used for binding feedback; meant to also carry the
- * which-key hint, `help` and `palette`.
+ * Our own overlay (ADR 0001): small boxes drawn into a given window's document, because Discord's
+ * toasts and modals only show in the main window. Each window has three slots, stacked bottom up:
+ * binding feedback, the which-key hint, and a panel (`help`, `palette`). Showing in one slot leaves the
+ * others alone, so feedback arriving while the palette is open doesn't take it down.
  */
 
 export type OverlayKind = "info" | "success" | "error";
+export type OverlaySlot = "feedback" | "hint" | "panel";
+
+/** Top to bottom on screen. */
+const SLOTS: OverlaySlot[] = ["panel", "hint", "feedback"];
 
 export interface OverlayOptions {
     kind?: OverlayKind;
@@ -22,20 +27,24 @@ export interface OverlayOptions {
 }
 
 export interface Overlay {
-    /** Replace whatever this window's overlay shows. Returns a hide that only hides this content. */
+    /** Replace whatever this slot shows. Returns a hide that only hides this content. */
     show(content: ReactNode, opts?: OverlayOptions): () => void;
     hide(): void;
 }
 
-interface Slot {
-    host: HTMLElement;
+interface Layer {
     root: ReturnType<typeof createRoot>;
     timer?: ReturnType<typeof setTimeout>;
     /** Bumped per show, so a stale hide or timer leaves newer content alone. */
     shown: number;
 }
 
-const slots = new Map<Document, Slot>();
+interface Host {
+    el: HTMLElement;
+    layers: Record<OverlaySlot, Layer>;
+}
+
+const hosts = new Map<Document, Host>();
 
 const ACCENT: Record<OverlayKind, string> = {
     info: "var(--brand-500, #5865f2)",
@@ -48,11 +57,6 @@ function OverlayBox({ kind, children }: { kind: OverlayKind; children: ReactNode
         <div
             role={kind === "error" ? "alert" : "status"}
             style={{
-                position: "fixed",
-                left: "50%",
-                bottom: 32,
-                transform: "translateX(-50%)",
-                zIndex: 100000,
                 maxWidth: "min(640px, calc(100vw - 32px))",
                 padding: "8px 14px",
                 borderRadius: 8,
@@ -61,8 +65,7 @@ function OverlayBox({ kind, children }: { kind: OverlayKind; children: ReactNode
                 color: "var(--text-normal, #dbdee1)",
                 boxShadow: "var(--elevation-high, 0 8px 16px rgba(0,0,0,.24))",
                 font: "500 14px/1.4 var(--font-primary, sans-serif)",
-                whiteSpace: "pre-wrap",
-                pointerEvents: "none"
+                whiteSpace: "pre-wrap"
             }}
         >
             {children}
@@ -70,55 +73,67 @@ function OverlayBox({ kind, children }: { kind: OverlayKind; children: ReactNode
     );
 }
 
-function slotFor(doc: Document): Slot {
+function hostFor(doc: Document): Host {
     // Closed pop-outs leave their documents behind; forget them.
-    for (const [d, s] of slots) if (!d.defaultView || d.defaultView.closed) drop(d, s);
+    for (const [d, h] of hosts) if (!d.defaultView || d.defaultView.closed) drop(d, h);
 
-    let slot = slots.get(doc);
+    let host = hosts.get(doc);
     // Discord re-rendering the body could take our host with it; start over then.
-    if (slot && !slot.host.isConnected) {
-        drop(doc, slot);
-        slot = undefined;
+    if (host && !host.el.isConnected) {
+        drop(doc, host);
+        host = undefined;
     }
-    if (!slot) {
-        const host = doc.createElement("div");
-        host.id = "vc-actions-overlay";
-        doc.body.appendChild(host);
-        slot = { host, root: createRoot(host), shown: 0 };
-        slots.set(doc, slot);
+    if (!host) {
+        const el = doc.createElement("div");
+        el.id = "vc-actions-overlay";
+        Object.assign(el.style, {
+            position: "fixed", left: "50%", bottom: "32px", transform: "translateX(-50%)", zIndex: "100000",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", pointerEvents: "none"
+        });
+        doc.body.appendChild(el);
+        const layers = Object.fromEntries(SLOTS.map(slot => {
+            const div = doc.createElement("div");
+            el.appendChild(div);
+            return [slot, { root: createRoot(div), shown: 0 }];
+        })) as Record<OverlaySlot, Layer>;
+        host = { el, layers };
+        hosts.set(doc, host);
     }
-    return slot;
+    return host;
 }
 
-function drop(doc: Document, slot: Slot) {
-    clearTimeout(slot.timer);
-    try {
-        slot.root.unmount();
-    } catch { /* its window is gone */ }
-    slot.host.remove();
-    slots.delete(doc);
+function drop(doc: Document, host: Host) {
+    for (const layer of Object.values(host.layers)) {
+        clearTimeout(layer.timer);
+        try {
+            layer.root.unmount();
+        } catch { /* its window is gone */ }
+    }
+    host.el.remove();
+    hosts.delete(doc);
 }
 
-/** The overlay of the window that owns `doc` (default: the main window). */
-export function overlay(doc: Document = document): Overlay {
+/** One slot of the overlay of the window that owns `doc` (default: the main window's feedback). */
+export function overlay(doc: Document = document, slot: OverlaySlot = "feedback"): Overlay {
     const hide = () => {
-        const slot = slots.get(doc);
-        if (!slot) return;
-        clearTimeout(slot.timer);
-        slot.shown++;
-        slot.root.render(null);
+        const layer = hosts.get(doc)?.layers[slot];
+        if (!layer) return;
+        clearTimeout(layer.timer);
+        layer.shown++;
+        layer.root.render(null);
     };
     return {
         hide,
         show(content, { kind = "info", duration = kind === "error" ? 5000 : 2500 } = {}) {
-            const slot = slotFor(doc);
-            clearTimeout(slot.timer);
-            const id = ++slot.shown;
-            slot.root.render(<OverlayBox kind={kind}>{content}</OverlayBox>);
+            const host = hostFor(doc);
+            const layer = host.layers[slot];
+            clearTimeout(layer.timer);
+            const id = ++layer.shown;
+            layer.root.render(<OverlayBox kind={kind}>{content}</OverlayBox>);
             const hideThis = () => {
-                if (slots.get(doc) === slot && slot.shown === id) hide();
+                if (hosts.get(doc) === host && layer.shown === id) hide();
             };
-            if (duration !== null) slot.timer = setTimeout(hideThis, duration);
+            if (duration !== null) layer.timer = setTimeout(hideThis, duration);
             return hideThis;
         }
     };
@@ -126,5 +141,5 @@ export function overlay(doc: Document = document): Overlay {
 
 /** Remove every overlay from every window (plugin stop). */
 export function disposeOverlays() {
-    for (const [d, s] of slots) drop(d, s);
+    for (const [d, h] of hosts) drop(d, h);
 }

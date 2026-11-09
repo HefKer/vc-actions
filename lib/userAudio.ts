@@ -7,7 +7,7 @@
 import { isPluginEnabled } from "@api/PluginManager";
 import { Settings } from "@api/Settings";
 import { findByPropsLazy } from "@webpack";
-import { MediaEngineStore, UserStore } from "@webpack/common";
+import { MediaEngineStore } from "@webpack/common";
 
 import { amplitudeToPercent, percentToAmplitude } from "./volume";
 
@@ -41,11 +41,4 @@ export const setLocalVolume = (userId: string, percent: number) => setLocalAmpli
 export const isLocalMute = (userId: string) => MediaEngineStore.isLocalMute(userId, CONTEXT);
 export function setLocalMute(userId: string, mute: boolean) {
     if (isLocalMute(userId) !== mute) AudioActions.toggleLocalMute(userId, CONTEXT);
-}
-
-export const isSelf = (userId: string) => userId === UserStore.getCurrentUser()?.id;
-
-export function displayName(userId: string): string {
-    const u = UserStore.getUser(userId);
-    return u?.globalName || u?.username || userId;
 }
