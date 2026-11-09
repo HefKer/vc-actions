@@ -6,14 +6,18 @@
 
 import type { Action } from "../registry";
 import popout from "./popout";
+import presetNext from "./presetNext";
 import retarget from "./retarget";
 import stopStream from "./stopStream";
 import stream from "./stream";
+import streamToggle from "./streamToggle";
 
 /** Every action. Adding one: write actions/<name>.ts, import it here, list it below. */
 export const actions: Action[] = [
     stream,
     stopStream,
     retarget,
+    streamToggle,
+    presetNext,
     popout,
 ];
