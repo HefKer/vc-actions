@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+// @ts-expect-error TS5097: node --test resolves only the real file name; tsc still type-checks the import.
+import { UserError } from "./errors.ts";
+
 /** Something a typed name can pick: a preset, voice channel, user or sound. */
 export interface Candidate<T> {
     /** Every name it answers to (a user: nickname, display name, username). The first is shown in errors. */
@@ -16,7 +19,7 @@ export interface Candidate<T> {
 }
 
 /** A name that matched nothing, or several; the message lists the candidates. */
-export class ResolveError extends Error { }
+export class ResolveError extends UserError { }
 
 export type Resolved<T> = { ok: true; value: T; } | { ok: false; error: string; };
 

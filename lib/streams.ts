@@ -9,6 +9,7 @@ import { findByCodeLazy, findByPropsLazy } from "@webpack";
 import { ApplicationStreamingStore, ChannelRTCStore, ChannelStore, FluxDispatcher, PopoutWindowStore, SelectedChannelStore, UserStore } from "@webpack/common";
 
 import { nextAfter, prevBefore } from "./cycle";
+import { UserError } from "./errors";
 
 /** Mirrors @vencord/discord-types/enums ParticipantType; that package doesn't resolve from this symlinked plugin. */
 const ParticipantType = { STREAM: 0, USER: 2 } as const;
@@ -44,7 +45,8 @@ const closeStream: (streamKey: string, canShowFeedback?: boolean) => void =
 const RTCActions: { selectParticipant(channelId: string, id: string | null): void; } =
     findByPropsLazy("selectParticipant", "popoutParticipant");
 
-export class StreamError extends Error { }
+/** Not in voice, nobody streaming and the like. */
+export class StreamError extends UserError { }
 
 export function encodeStreamKey(s: StreamRef): string {
     return s.guildId != null

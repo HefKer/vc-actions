@@ -15,9 +15,8 @@ import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { WhichKeyHint } from "./lib/hint";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
-import { PresetsMissing } from "./lib/presets";
-import { ResolveError } from "./lib/resolve";
-import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
+import { UserError } from "./lib/errors";
+import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
 import { resolveUserArgs } from "./lib/users";
 import { startVoiceTracking, stopVoiceTracking } from "./lib/voice";
 import { attachToWindows } from "./lib/windows";
@@ -63,8 +62,8 @@ async function runAction(action: Action, ctx: ActionContext, prefix = ""): Promi
         const release = await action.run({ ...ctx, args: resolveUserArgs(action, ctx.args), reply }) ?? undefined;
         return failed ? { ok: false, release } : { ok: true, release };
     } catch (e) {
-        // Known failures (missing VcPresets, no stream, unknown name) get their message; anything else gets logged too.
-        if (!(e instanceof PresetsMissing || e instanceof StreamError || e instanceof ResolveError)) logger.error(`action ${action.id} failed`, e);
+        // Expected failures (missing VcPresets, no stream, unknown name) get their message; anything else gets logged too.
+        if (!(e instanceof UserError)) logger.error(`action ${action.id} failed`, e);
         ctx.reply(prefix + (e instanceof Error ? e.message : String(e)), "error");
         return { ok: false };
     }
