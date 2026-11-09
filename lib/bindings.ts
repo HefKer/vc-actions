@@ -17,6 +17,8 @@ export interface ActionMeta {
     id: string;
     /** Arg names in order; the last one takes the rest of the step. */
     args: string[];
+    /** Its run can return a release callback, so hold bindings may use it. */
+    holdable?: boolean;
 }
 
 /** A key event as the engine sees it. Modifiers and `repeat` mirror KeyboardEvent. */
@@ -46,6 +48,10 @@ export interface Step {
 export type Effect =
     /** Run these steps in order. */
     | { type: "run"; trigger: string; steps: Step[]; }
+    /** Hold binding pressed: run this step and keep its release callback under `trigger`. */
+    | { type: "hold"; trigger: string; step: Step; }
+    /** Hold binding let go (keyup or blur): call the release callback kept under `trigger`. */
+    | { type: "release"; trigger: string; }
     /** A sequence is under way: show the which-key hint (replacing any earlier one) until a run or cancel. */
     | { type: "hint"; keys: string; next: HintEntry[]; }
     /** The sequence under way ended without running anything: hide the hint. */
@@ -90,6 +96,7 @@ interface Binding {
     keys: string[];
     trigger: string;
     steps: Step[];
+    hold?: boolean;
 }
 
 const MODS: Record<string, keyof Omit<Combo, "key">> = {
@@ -163,7 +170,7 @@ function parseSteps(text: string, byId: Map<string, ActionMeta>): Step[] | strin
     return steps;
 }
 
-/** Build an engine from the bindings text (`trigger = step` per line, `#` comments) and the known actions. */
+/** Build an engine from the bindings text (`[hold] trigger = step` per line, `#` comments) and the known actions. */
 export function createBindingEngine(text: string, actions: ActionMeta[]): BindingEngine {
     const byId = new Map(actions.map(a => [a.id, a]));
     const bindings: Binding[] = [];
@@ -198,7 +205,10 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         if (!line) return;
         const eq = line.indexOf("=");
         if (eq < 0) return error(i + 1, `expected "trigger = action", got "${line}"`);
-        const trigger = line.slice(0, eq).trim();
+        let trigger = line.slice(0, eq).trim();
+        const hold = /^hold\s/i.test(trigger);
+        if (hold) trigger = trigger.slice(4).trim();
+        if (hold && /\s/.test(trigger)) return error(i + 1, `hold works only on a single combo, not "${trigger}"`);
         const keys = trigger.split(/\s+/);
         const parsed = keys.map(parseCombo);
         if (!parsed.every(c => c)) return error(i + 1, `can't read trigger "${trigger}"`);
@@ -208,10 +218,15 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
             return error(i + 1, `sequence "${trigger}" must start with ctrl, alt or meta, so typing never starts it`);
         const steps = parseSteps(line.slice(eq + 1), byId);
         if (typeof steps === "string") return error(i + 1, steps);
+        if (hold && steps.length > 1) return error(i + 1, "hold works only on a single step, not a macro");
+        if (hold && !byId.get(steps[0].actionId)!.holdable) return error(i + 1, `"${steps[0].actionId}" can't be held: it has no release`);
         const clash = checkConflicts(combos, trigger, i + 1);
         if (clash) return error(i + 1, clash);
-        bindings.push({ line: i + 1, combos, keys, trigger, steps });
+        bindings.push({ line: i + 1, combos, keys, trigger, hold, steps });
     });
+
+    /** Hold bindings whose key is down. */
+    const held = new Set<Binding>();
 
     /** Combos of the sequence under way, empty when idle. */
     let typed: string[] = [];
@@ -233,16 +248,23 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
     return {
         problems,
         feed(e) {
+            const release = (bs: Binding[]): Effect[] => bs.map(b => {
+                held.delete(b);
+                return { type: "release", trigger: b.trigger };
+            });
             const cancel = (): Effect[] => {
                 typed = [];
                 return e.type === "keydown" ? [{ type: "cancel" }, { type: "swallow" }] : [{ type: "cancel" }];
             };
-            if (e.type === "blur") return typed.length ? cancel() : [];
-            if (e.type !== "keydown") return [];
+            if (e.type === "blur") return [...release([...held]), ...(typed.length ? cancel() : [])];
+            const key = eventKey(e);
+            // A held key: its keyup releases, (auto-)repeats of it are swallowed. Modifiers may already be up.
+            const heldHere = [...held].filter(b => b.combos[0].key === key);
+            if (e.type === "keyup") return heldHere.length ? [...release(heldHere), { type: "swallow" }] : [];
+            if (heldHere.length) return [{ type: "swallow" }];
             // No timeout mid-sequence: holding the last key or reaching for a modifier keeps it going.
             if (e.repeat) return typed.length ? [{ type: "swallow" }] : [];
             if (MODIFIER_KEYS.has(e.key)) return [];
-            const key = eventKey(e);
             if (typed.length && key === "escape") return cancel();
             const id = comboId({ ctrl: e.ctrl, alt: e.alt, shift: e.shift, meta: e.meta, key });
             const hits = after(typed).filter(b => comboId(b.combos[typed.length]) === id);
@@ -254,6 +276,10 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
             const done = hits.find(b => b.combos.length === typed.length + 1);
             if (done) {
                 typed = [];
+                if (done.hold) {
+                    held.add(done);
+                    return [{ type: "hold", trigger: done.trigger, step: done.steps[0] }, { type: "swallow" }];
+                }
                 return [{ type: "run", trigger: done.trigger, steps: done.steps }, { type: "swallow" }];
             }
             typed.push(id);
