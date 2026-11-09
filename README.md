@@ -93,7 +93,9 @@ the bottom of the window you pressed the key in.
 
 Problems are logged and shown in the main window's overlay when the plugin starts and after you change the
 setting (once typing settles, and only when the problems differ from the ones last shown). A bad line, a trigger already bound on an
-earlier line, or an ambiguous one (a combo bound alone and as a leader, or a sequence that starts another) is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
+earlier line, or an ambiguous one (a combo bound alone and as a leader, or a sequence that starts another) is an error: that line is skipped (the first binding wins), since
+the engine can't tell them apart and the later line could never fire. That includes a combo bound once with `hold` and once without: there's no tap-vs-hold timing.
+A sequence with Esc after the leader is an error too: Esc cancels a sequence before anything is matched. A trigger that is one of Discord's own
 default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
 Discord's. For a sequence only the leader is checked, once per leader. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
 

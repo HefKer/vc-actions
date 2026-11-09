@@ -199,12 +199,16 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
      * Conflict checks for a parsed binding: returns an error (skip the line) or pushes warnings (still bound).
      * A trigger that equals, starts or is started by an earlier one can't be told apart: the earlier line wins.
      */
-    function checkConflicts(combos: Combo[], trigger: string, line: number): string | undefined {
+    function checkConflicts(combos: Combo[], trigger: string, line: number, hold: boolean): string | undefined {
         const ids = combos.map(comboId);
         for (const b of bindings) {
             const n = Math.min(ids.length, b.combos.length);
             if (!ids.slice(0, n).every((id, j) => comboId(b.combos[j]) === id)) continue;
-            if (ids.length === b.combos.length) return `"${trigger}" is already bound on line ${b.line}, which wins`;
+            if (ids.length === b.combos.length) {
+                // No tap-vs-hold timing: a combo either holds or runs.
+                const both = hold !== !!b.hold ? ": a combo can't be both held and tapped" : "";
+                return `"${trigger}" is already bound on line ${b.line}, which wins${both}`;
+            }
             return `"${trigger}" is ambiguous with "${b.trigger}" on line ${b.line}, which wins: a trigger can't also start a longer sequence`;
         }
         // Only the first combo reaches Discord: later keys of a sequence are ours while the hint is up.
@@ -236,7 +240,10 @@ export function createBindingEngine(text: string, actions: ActionMeta[]): Bindin
         if (typeof steps === "string") return error(i + 1, steps);
         if (hold && steps.length > 1) return error(i + 1, "hold works only on a single step, not a macro");
         if (hold && !byId.get(steps[0].actionId)!.holdable) return error(i + 1, `"${steps[0].actionId}" can't be held: it has no release`);
-        const clash = checkConflicts(combos, trigger, i + 1);
+        // Mid-sequence Esc always cancels, whatever its modifiers, before any binding is looked at.
+        if (combos.slice(1).some(c => c.key === "escape"))
+            return error(i + 1, `"${trigger}" can never finish: Esc after the leader cancels the sequence`);
+        const clash = checkConflicts(combos, trigger, i + 1, hold);
         if (clash) return error(i + 1, clash);
         bindings.push({ line: i + 1, combos, keys, trigger, hold, steps });
     });

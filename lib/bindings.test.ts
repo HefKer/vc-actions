@@ -280,6 +280,12 @@ test("a combo bound alone and as a leader, or a sequence that is a prefix of ano
     assert.deepEqual(engine.feed(down("v"))[0], { type: "hint", keys: "ctrl+space v", next: [{ key: "j", steps: [streamStep] }] });
 });
 
+test("a sequence with Esc after the leader is an error: Esc cancels it first", () => {
+    const engine = createBindingEngine("ctrl+space esc = popout\nctrl+space shift+escape = popout\nctrl+escape = popout", actions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["error", 1], ["error", 2]]);
+    assert.match(engine.problems[0].message, /never finish.*Esc/);
+});
+
 test("a leader that is one of Discord's default shortcuts warns once; later keys of a sequence never do", () => {
     const engine = createBindingEngine("ctrl+shift+m a = popout\nctrl+shift+m b = popout\nctrl+alt+x ctrl+shift+m = popout", actions);
     assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["warning", 1]]);
@@ -340,6 +346,15 @@ test("a holdable action bound without hold just runs", () => {
     const engine = createBindingEngine("ctrl+alt+m = unmute", holdActions);
     assert.deepEqual(engine.feed(down("ctrl+alt+m"))[0].type, "run");
     assert.deepEqual(engine.feed(up("ctrl+alt+m")), []);
+});
+
+test("a hold and a plain binding on the same combo is an error saying it can't be both; the first line wins", () => {
+    const engine = createBindingEngine("hold ctrl+alt+m = unmute\nctrl+alt+m = deafen\nctrl+alt+d = deafen\nhold ctrl+alt+d = deafen", holdActions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["error", 2], ["error", 4]]);
+    assert.match(engine.problems[0].message, /line 1.*both held and tapped/);
+    assert.match(engine.problems[1].message, /line 3.*both held and tapped/);
+    assert.equal(engine.feed(down("ctrl+alt+m"))[0].type, "hold");
+    assert.equal(engine.feed(down("ctrl+alt+d"))[0].type, "run");
 });
 
 test("a hold releases on keyup of its key even after its modifiers went up first", () => {
