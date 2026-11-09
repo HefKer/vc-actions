@@ -14,6 +14,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
 | `help` | | Show a cheatsheet of your current bindings in the window you pressed it in (pop-outs too), sequences grouped under their leader. Any key closes it; Esc is swallowed |
+| `palette` | | Fuzzy command palette in the window you pressed it in (pop-outs too); see [Palette](#palette) |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -35,6 +36,7 @@ ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
 ctrl+alt+g = stream Gaming; popout
 ctrl+alt+h = help
+ctrl+alt+space = palette
 ```
 
 Grammar: `<combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
@@ -52,6 +54,18 @@ Problems are logged and shown in a toast when you change the setting. A bad line
 earlier line is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
 default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
 Discord's. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
+
+## Palette
+
+Bind it (`ctrl+alt+space = palette`) and every action is a few letters away without its own key. Entries: your
+bindings first, with their trigger shown, then every action once per choice of its first arg (presets, and for
+user args without choices the other people in your voice channel; an entry shows the name but runs the id). An
+action whose first arg has no choices (or none right now, e.g. VcPresets missing), or that has more args after
+the chosen one, takes free text: type it after the words that match the entry (`vol ali +20` runs
+`volume <alice's id> +20`), or press Tab to complete the selected entry first. Matching is fuzzy over labels and
+triggers: the letters in order, case and spaces ignored, word starts and runs ranked higher, ties in list order.
+Up/Down select, Enter runs (a binding's steps as a macro, feedback in the same window), Esc or leaving the box
+closes it and puts focus back. Actions added later appear automatically, with their `choices()`.
 
 ## Names
 
@@ -117,7 +131,7 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`: binding engine, name resolver, Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
+Unit tests (pure modules in `lib/`: binding engine, name resolver, cheatsheet, palette ranking, Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.
 
