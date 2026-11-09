@@ -82,9 +82,10 @@ test("combos accept modifier synonyms, key aliases and any case", () => {
         "Control+Option+Space = stopstream",
         "cmd+esc = stopstream",
         "ctrl++ = stopstream",
-        "mod+plus = stopstream"
+        "mod+alt+plus = stopstream"
     ].join("\n"), actions);
     assert.deepEqual(engine.problems, []);
+    assert.equal(engine.feed(down("ctrl+alt+plus", { key: "+", code: "Equal" }))[0].type, "run");
     assert.equal(engine.feed(down("ctrl+alt+ ", { code: "Space" }))[0].type, "run");
     assert.equal(engine.feed(down("meta+Escape", { code: "Escape" }))[0].type, "run");
     assert.equal(engine.feed(down("ctrl+plus", { key: "+", code: "Equal" }))[0].type, "run");
@@ -121,6 +122,52 @@ test("bad lines are reported as errors with their line and skipped; good lines s
     assert.match(engine.problems[3].message, /nosuch/);
     assert.deepEqual(engine.feed(down("ctrl+alt+p")), []);
     assert.equal(engine.feed(down("ctrl+alt+0"))[0].type, "run");
+});
+
+test("a macro splits on ; into steps in order, each with its own args", () => {
+    const engine = createBindingEngine("ctrl+alt+g = stream Gaming Night ;popout;  stopstream ", actions);
+    assert.deepEqual(engine.problems, []);
+    assert.deepEqual(engine.feed(down("ctrl+alt+g")), [
+        {
+            type: "run", trigger: "ctrl+alt+g", steps: [
+                { actionId: "stream", args: { preset: "Gaming Night" }, text: "stream Gaming Night" },
+                { actionId: "popout", args: { user: undefined }, text: "popout" },
+                { actionId: "stopstream", args: {}, text: "stopstream" }
+            ]
+        },
+        { type: "swallow" }
+    ]);
+});
+
+test("a macro with an unknown action or an empty step is an error naming the step, and isn't bound", () => {
+    const engine = createBindingEngine([
+        "ctrl+alt+g = stream Gaming; nosuch x",
+        "ctrl+alt+h = popout;; stopstream",
+        "ctrl+alt+j = popout;"
+    ].join("\n"), actions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["error", 1], ["error", 2], ["error", 3]]);
+    assert.match(engine.problems[0].message, /step 2.*nosuch/);
+    assert.match(engine.problems[1].message, /step 2/);
+    assert.match(engine.problems[2].message, /step 2/);
+    for (const k of ["ctrl+alt+g", "ctrl+alt+h", "ctrl+alt+j"]) assert.deepEqual(engine.feed(down(k)), []);
+});
+
+test("a trigger bound twice is an error on the later line; the first binding wins", () => {
+    const engine = createBindingEngine("ctrl+alt+p = popout\nControl+Alt+P = stopstream", actions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["error", 2]]);
+    assert.match(engine.problems[0].message, /line 1/);
+    const [run] = engine.feed(down("ctrl+alt+p"));
+    assert.equal(run.type === "run" && run.steps[0].actionId, "popout");
+});
+
+test("a trigger that is one of Discord's default shortcuts is a warning naming it, and still bound", () => {
+    const engine = createBindingEngine("ctrl+alt+p = popout\nmod+shift+M = stopstream\nalt+arrowdown = popout", actions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["warning", 2], ["warning", 3]]);
+    assert.match(engine.problems[0].message, /toggle mute/i);
+    assert.match(engine.problems[1].message, /next channel/i);
+    const [run] = engine.feed(down("ctrl+shift+m"));
+    assert.equal(run.type === "run" && run.steps[0].actionId, "stopstream");
+    assert.equal(engine.feed(down("alt+ArrowDown"))[0].type, "run");
 });
 
 test("bindings lists the loaded bindings as written, bad lines left out", () => {

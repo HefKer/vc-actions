@@ -34,14 +34,24 @@ ctrl+alt+0 = stopstream
 ctrl+alt+2 = retarget Browser
 ctrl+alt+s = streamtoggle Gaming
 ctrl+alt+n = preset next
+ctrl+alt+g = stream Gaming; popout
 ctrl+alt+h = help
 ```
 
-Words after the action id fill its args in order; the last arg takes the rest of the line, so preset names can
-have spaces. `popout` takes a user id. Modifiers: `ctrl`, `alt`, `shift`, `meta`. Letters and digits match by
-physical key, so `ctrl+shift+1` works. Hotkeys fire in the main window and in every Discord pop-out (call
-or stream pop-outs), whichever is focused; global ones belong in niri binds. None are bound by default.
-Feedback (success, errors) shows in a small overlay at the bottom of the window you pressed the key in.
+Grammar: `<combo> = <step>[; <step>...]`, a step being `<action id> <args...>`. Words after the action id fill
+its args in order; the last arg takes the rest of the step, so preset names can have spaces. `;` always
+separates steps, so args can't contain it. A binding with several steps (a macro) runs them in order, each
+waiting for the previous one to finish; the first failing step stops the rest and its error names the step.
+A bad step (unknown action, empty step) makes the whole line an error. `popout` takes a user id. Modifiers:
+`ctrl`, `alt`, `shift`, `meta`. Letters and digits match by physical key, so `ctrl+shift+1` works. Hotkeys
+fire in the main window and in every Discord pop-out (call or stream pop-outs), whichever is focused; global
+ones belong in niri binds. None are bound by default. Feedback (success, errors) shows in a small overlay at
+the bottom of the window you pressed the key in.
+
+Problems are logged and shown in a toast when you change the setting. A bad line or a trigger already bound on an
+earlier line is an error: that line is skipped (the first binding wins). A trigger that is one of Discord's own
+default shortcuts (`ctrl+shift+m`, `ctrl+k`, `alt+arrowdown`...) is a warning: it's still bound and overrides
+Discord's. Discord has no readable list of its shortcuts, so they're hard-coded in `lib/discordDefaults.ts`.
 
 ## Adding an action
 
