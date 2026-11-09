@@ -1,0 +1,339 @@
+/* The Hotkeys setting editor: a transparent textarea over a coloured mirror of its text (lib/editor/HotkeysEditor.tsx). */
+
+.vc-qa-editor {
+    /* Discord's code colours follow the theme; the fallbacks are for builds without them. */
+    --vc-qa-keyword: var(--text-code-keyword, #ff7b72);
+    --vc-qa-trigger: var(--text-code-title, #a5b4fc);
+    --vc-qa-event: var(--text-code-property, #5eead4);
+    --vc-qa-action: var(--text-code-builtin, #f9c74f);
+    --vc-qa-arg: var(--text-code-string, #7ee787);
+    --vc-qa-group: var(--text-code-type, #f78bd6);
+    --vc-qa-comment: var(--text-code-comment, #8b949e);
+    --vc-qa-punct: var(--text-muted, #949ba4);
+    --vc-qa-error: var(--text-feedback-critical, #f57976);
+    --vc-qa-warning: var(--text-feedback-warning, #e9b54b);
+    --vc-qa-line: 20px;
+    --vc-qa-pad: 10px;
+
+    position: relative;
+    background: var(--input-background-default, var(--background-secondary, #2b2d31));
+    border: 1px solid var(--input-border-default, var(--border-subtle, transparent));
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-default, var(--text-normal, #dbdee1));
+}
+
+.theme-light .vc-qa-editor {
+    --vc-qa-keyword: var(--text-code-keyword, #cf222e);
+    --vc-qa-trigger: var(--text-code-title, #4f46e5);
+    --vc-qa-event: var(--text-code-property, #0f766e);
+    --vc-qa-action: var(--text-code-builtin, #9a6700);
+    --vc-qa-arg: var(--text-code-string, #116329);
+    --vc-qa-group: var(--text-code-type, #bf3989);
+    --vc-qa-comment: var(--text-code-comment, #6e7781);
+    --vc-qa-punct: var(--text-muted, #5c5e66);
+    --vc-qa-error: var(--text-feedback-critical, #d22d39);
+    --vc-qa-warning: var(--text-feedback-warning, #9a6700);
+}
+
+.vc-qa-editor:focus-within {
+    border-color: var(--border-focus, var(--text-link, #00a8fc));
+}
+
+/* Mirror and textarea must lay text out identically, so they share every metric (no bold tokens: it can change widths). */
+.vc-qa-editor-mirror,
+.vc-qa-editor-input {
+    font-family: var(--font-code, monospace);
+    font-size: 14px;
+    font-variant-ligatures: none;
+    line-height: var(--vc-qa-line);
+    letter-spacing: normal;
+    tab-size: 4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.vc-qa-editor-mirror {
+    margin: 0;
+    padding: var(--vc-qa-pad) 0;
+    min-height: calc(var(--vc-qa-line) * 4);
+}
+
+.vc-qa-editor-row {
+    display: flex;
+    min-height: var(--vc-qa-line);
+}
+
+.vc-qa-editor-ln {
+    flex: 0 0 var(--vc-qa-gutter);
+    box-sizing: border-box;
+    padding-right: 8px;
+    border-right: 1px solid var(--border-subtle, rgb(128 128 128 / 20%));
+    text-align: right;
+    color: var(--vc-qa-punct);
+    opacity: 0.6;
+    user-select: none;
+}
+
+.vc-qa-editor-code {
+    flex: 1;
+    min-width: 0;
+    padding: 0 var(--vc-qa-pad);
+}
+
+.vc-qa-editor-row-error .vc-qa-editor-ln,
+.vc-qa-editor-row-warning .vc-qa-editor-ln {
+    opacity: 1;
+    font-weight: 700;
+    cursor: help;
+}
+
+.vc-qa-editor-row-error .vc-qa-editor-ln {
+    color: var(--vc-qa-error);
+    box-shadow: inset 3px 0 var(--vc-qa-error);
+}
+
+.vc-qa-editor-row-warning .vc-qa-editor-ln {
+    color: var(--vc-qa-warning);
+    box-shadow: inset 3px 0 var(--vc-qa-warning);
+}
+
+.vc-qa-editor-row-error .vc-qa-editor-code {
+    background: color-mix(in srgb, var(--vc-qa-error) 12%, transparent);
+}
+
+.vc-qa-editor-row-warning .vc-qa-editor-code {
+    background: color-mix(in srgb, var(--vc-qa-warning) 10%, transparent);
+}
+
+.vc-qa-editor-input {
+    position: absolute;
+    inset: 0 0 0 var(--vc-qa-gutter);
+    box-sizing: border-box;
+    width: calc(100% - var(--vc-qa-gutter));
+    height: 100%;
+    margin: 0;
+    padding: var(--vc-qa-pad);
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    background: transparent;
+    color: transparent;
+    caret-color: var(--text-default, var(--text-normal, #dbdee1));
+}
+
+.vc-qa-editor-input::placeholder {
+    color: var(--text-muted, #949ba4);
+}
+
+.vc-qa-editor-input::selection {
+    background: color-mix(in srgb, var(--text-link, #00a8fc) 30%, transparent);
+    color: transparent;
+}
+
+.vc-qa-tok-keyword {
+    color: var(--vc-qa-keyword);
+}
+
+.vc-qa-tok-trigger {
+    color: var(--vc-qa-trigger);
+}
+
+.vc-qa-tok-event {
+    color: var(--vc-qa-event);
+}
+
+.vc-qa-tok-eq,
+.vc-qa-tok-sep {
+    color: var(--vc-qa-punct);
+}
+
+.vc-qa-tok-action {
+    color: var(--vc-qa-action);
+}
+
+.vc-qa-tok-arg {
+    color: var(--vc-qa-arg);
+}
+
+.vc-qa-tok-group {
+    color: var(--vc-qa-group);
+    text-decoration: underline dotted;
+}
+
+.vc-qa-tok-comment {
+    color: var(--vc-qa-comment);
+    font-style: italic;
+}
+
+.vc-qa-editor-popup {
+    position: absolute;
+    z-index: 10;
+    width: min(440px, 100%);
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px;
+    box-sizing: border-box;
+    background: var(--background-floating, var(--background-base-lowest, #111214));
+    border: 1px solid var(--border-subtle, transparent);
+    border-radius: var(--radius-sm, 8px);
+    box-shadow: var(--elevation-high, 0 8px 16px rgb(0 0 0 / 24%));
+    font-size: 14px;
+}
+
+.vc-qa-editor-popup-title {
+    padding: 2px 6px 4px;
+    font-size: 12px;
+    color: var(--text-muted, #949ba4);
+}
+
+.vc-qa-editor-item {
+    display: flex;
+    gap: 12px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.vc-qa-editor-item-selected {
+    background: var(--background-mod-strong, var(--background-modifier-selected, rgb(78 80 88 / 60%)));
+}
+
+.vc-qa-editor-item-label {
+    font-family: var(--font-code, monospace);
+    white-space: nowrap;
+    color: var(--text-strong, var(--header-primary, #f2f3f5));
+}
+
+.vc-qa-editor-item-detail {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted, #949ba4);
+}
+
+.vc-qa-editor-problems {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.vc-qa-editor-problem {
+    display: flex;
+    gap: 8px;
+    padding: 2px 0;
+    color: var(--text-default, var(--text-normal, #dbdee1));
+}
+
+.vc-qa-editor-problem-line {
+    flex: none;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-family: var(--font-code, monospace);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.vc-qa-editor-problem-line:hover {
+    text-decoration: underline;
+}
+
+.vc-qa-editor-problem-error .vc-qa-editor-problem-line {
+    color: var(--vc-qa-error);
+}
+
+.vc-qa-editor-problem-warning .vc-qa-editor-problem-line {
+    color: var(--vc-qa-warning);
+}
+
+.vc-qa-editor-status {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted, #949ba4);
+}
+
+/* Reference under the editor: Syntax ▸ and Actions ▸. */
+.vc-qa-ref {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--text-default, var(--text-normal, #dbdee1));
+}
+
+.vc-qa-ref summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 4px 0;
+    font-weight: 600;
+    color: var(--text-strong, var(--header-primary, #f2f3f5));
+    user-select: none;
+}
+
+.vc-qa-ref summary::-webkit-details-marker {
+    display: none;
+}
+
+.vc-qa-ref summary::after {
+    content: " ▸";
+    color: var(--text-muted, #949ba4);
+}
+
+.vc-qa-ref details[open] > summary::after {
+    content: " ▾";
+}
+
+.vc-qa-ref-body {
+    padding: 4px 0 8px 12px;
+    border-left: 2px solid var(--border-subtle, rgb(128 128 128 / 20%));
+}
+
+.vc-qa-ref-body p {
+    margin: 0 0 6px;
+}
+
+.vc-qa-ref code {
+    font-family: var(--font-code, monospace);
+    font-size: 13px;
+    padding: 0 3px;
+    border-radius: 3px;
+    background: var(--background-mod-subtle, rgb(128 128 128 / 15%));
+}
+
+.vc-qa-ref table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.vc-qa-ref th {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted, #949ba4);
+    padding: 2px 8px 4px 0;
+}
+
+.vc-qa-ref td {
+    vertical-align: top;
+    padding: 3px 8px 3px 0;
+    border-top: 1px solid var(--border-subtle, rgb(128 128 128 / 20%));
+}
+
+.vc-qa-ref-action {
+    cursor: pointer;
+}
+
+.vc-qa-ref-action:hover {
+    background: var(--background-mod-subtle, rgb(128 128 128 / 10%));
+}
+
+.vc-qa-ref-mono {
+    font-family: var(--font-code, monospace);
+    white-space: nowrap;
+}
