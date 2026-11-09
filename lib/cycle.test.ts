@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+// @ts-expect-error TS5097: node --test needs the .ts extension, Vencord's tsconfig doesn't allow it.
 import { nextAfter } from "./cycle.ts";
 
 test("next preset is the one after the current, in list order", () => {
