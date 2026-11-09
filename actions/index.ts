@@ -41,6 +41,8 @@ import vcleave from "./vcleave";
 import volume from "./volume";
 import watch from "./watch";
 import messagemode from "./messagemode";
+import reply from "./reply";
+import react from "./react";
 
 /** Every action. Adding one: write actions/<id>.ts (or .tsx), import it here, list it below. */
 export const actions: Action[] = [
@@ -80,4 +82,6 @@ export const actions: Action[] = [
     notifs,
     inbox,
     messagemode,
+    reply,
+    react,
 ];
