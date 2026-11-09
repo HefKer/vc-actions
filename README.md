@@ -49,6 +49,12 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `react` | | `react <emoji>` reacts to the newest message in the channel you're viewing: `👍`, `thumbsup` or `:thumbsup:`, `<:name:id>`, or a custom emoji's name (see [Names](#names)). Says so if you already reacted with it |
 | `upload` | | Open the file chooser to upload files to the channel shown in the window you pressed it in (pop-outs too), like the composer's **+ → Upload a File**. Picked files land in the composer as attachments, unsent. `upload clipboard` instead attaches the copied image(s), as pasting does; says so if the clipboard holds no image (copied files from a file manager don't count: Chromium only exposes images) |
 | `search` | `/search <query>` | `search <text>` searches the messages of the server or DM you're in, like typing it in Discord's search bar and pressing Enter; Discord's filters work (`search from:alice has:image cat`). With no text, focuses the search bar |
+| `upload` | | Open the file chooser to upload files to the channel shown in the window you pressed it in (pop-outs too), like the composer's **+ → Upload a File**. Picked files land in the composer as attachments, unsent |
+| `channelpick` | | Fuzzy-pick a channel of the server you're viewing (your DMs when you're in DMs) and go there; `channelpick all`: every server's channels and your DMs. Unread and mention marks like the sidebar's; see [Pickers](#pickers) |
+| `serverpick` | | Fuzzy-pick any of your servers, in server-list order, and go there like clicking its icon; see [Pickers](#pickers) |
+| `vcpick` | | Fuzzy-pick a voice channel, showing who's in it, and join it; Shift+Enter just opens its view. See [Pickers](#pickers) |
+| `soundpick` | | Fuzzy-pick a soundboard sound and play it in your voice channel, like `soundboard`; see [Pickers](#pickers) |
+| `presetpick` | | Fuzzy-pick a VcPresets preset: not live, stream with it like `stream`; live, retarget to it like `retarget`. See [Pickers](#pickers) |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -207,17 +213,44 @@ in Vencord's DataStore (`QuickActions_uses_palette`), at most 200 entries.
 
 ## Pickers
 
-`favpick` and `userpick` open the palette's picker over a list of their own, in the window you pressed the key in:
-same fuzzy matching (over the name, and a user's username), Up/Down, Enter, Esc, and frecency (counted per
-picker by server or user id, `QuickActions_uses_favpick`/`_userpick`). Both are in the palette too.
+`favpick`, `userpick`, `channelpick`, `serverpick`, `vcpick`, `soundpick` and `presetpick` open the palette's picker
+over a list of their own, in the window you pressed the key in: same fuzzy matching (over the name and the dimmed
+detail beside it), Up/Down, Enter, Esc, and frecency, counted per picker by id (server, user, channel, sound id, or
+preset name) and saved as `QuickActions_uses_<picker>`. All are in the palette too (`channelpick` as an entry taking
+free text: type `all` after it). Rows may have an icon before the name (a channel's kind: `#`, 🔊, 🧵...; a sound's
+emoji) and a badge after it: a red mention count, or `●` for unread, as the sidebar and server list show them.
+Navigation happens in the main window, as with `fav`.
 
 - `favpick`: your favorite servers you're still in, in the order added. Enter goes there like `fav`. No favorites
   yet: it says so instead of opening.
 - `userpick`: the other person of each one-to-one DM, in Discord's DM list order (latest message first), then
   friends you have no DM with, by name; group DMs and yourself are left out. Shown by friend nickname, display
   name or username, with the username beside it when that differs. Enter opens your DM with them (Discord's
-  `openPrivateChannel` creates it for a friend you never messaged). Navigation happens in the main window, as with
-  `fav`.
+  `openPrivateChannel` creates it for a friend you never messaged).
+- `channelpick`: the channels of the server you're viewing that you can see, in sidebar order: uncategorized first,
+  then each category, text kinds (text, announcement, forum) before voice ones, each followed by the threads you've
+  joined (newest first); categories themselves left out. Unlike the sidebar it lists channels in collapsed
+  categories and muted channels it hides. The detail is the category (a thread's: category › parent). From DMs it
+  lists your DMs and group DMs. `channelpick all`: your DMs (detail `DM`), then every server's channels in
+  server-list order, the server's name as detail. Enter goes there (`ChannelRouter.transitionToChannel`): a voice
+  channel opens its view without joining. The unread mark is `unread`'s predicate (see
+  [Unread and notifications](#unread-and-notifications)), the mention count ReadStateStore's.
+- `serverpick`: every server in server-list order, folders flattened, a named folder's name as detail. Badges from
+  GuildReadStateStore (unread as the server list shows it, mentions). Enter goes there like clicking its icon: the
+  channel you last had open there.
+- `vcpick`: voice and stage channels you can see, the server you're viewing (else the one you're in voice in) first in
+  sidebar order, then the other servers' in server-list order with the server's name as detail. The detail lists who's
+  in each (first 3 names, `+N` for the rest; typing a name finds where they are) and the badge counts them; the channel
+  you're in has ▶ for its icon. Enter joins like `vcjoin` ("Already in" if you are); Shift+Enter only opens its view,
+  like `gotocall`.
+- `soundpick`: the sounds `soundboard` matches, in its order (your voice channel's server, Discord's defaults, then
+  other servers'), the server (or `default`) as detail and the sound's emoji as icon; a sound you can't play here
+  (another server's without Nitro, or the channel forbids it) has a 🔒 badge and is refused if picked. Needs you in
+  voice; fetches the sound lists first if nobody has, like opening the soundboard.
+- `presetpick`: VcPresets' presets in its list order. Not live, Enter streams with the pick (`stream`); live, it
+  retargets to it (`retarget`), the preset QuickActions last went live with or retargeted to marked `live`. Whether
+  you're live is checked again on Enter.
+
 ## Message mode
 
 Bind it (`ctrl+space m = messagemode`): the newest message in the channel shown in that window (pop-outs with a
@@ -331,7 +364,7 @@ extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the 
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
 
-Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates,
+Unit tests (pure modules in `lib/`: binding engine, event hooks, name resolver, cheatsheet, palette entries and ranking, frecency, user picker candidates, channel/server/voice picker rows and sidebar order,
 cycling, favorites, unread walk, sound candidates, voice channels, volume conversion, window tracker, message mode keys, `react`'s emoji arg; Node 24, no deps): `node --test 'lib/*.test.ts'` (Node 24 won't take a directory, so `node --test lib/` fails).
 Vencord's `pnpm test` is only tsc and lint, but it checks the test files too. Tests import `./x.ts` (Node needs the
 real file name) under `// @ts-expect-error` for TS5097; tsc still type-checks the import.

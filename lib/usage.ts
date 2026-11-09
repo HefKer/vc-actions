@@ -10,7 +10,7 @@ import { logger } from "./discord";
 import { frecency, recordUse, type Uses } from "./frecency";
 
 /** Which picker the picks were made in; each counts its own, saved under its own DataStore key. */
-export type UsageList = "palette" | "favpick" | "userpick";
+export type UsageList = "palette" | "favpick" | "userpick" | "channelpick" | "serverpick" | "vcpick" | "soundpick" | "presetpick";
 
 const storeKey = (list: UsageList) => `QuickActions_uses_${list}`;
 

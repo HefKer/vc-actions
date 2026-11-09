@@ -6,6 +6,7 @@
 
 import type { Action } from "../registry";
 import camera from "./camera";
+import channelpick from "./channelpick";
 import customstatus from "./customstatus";
 import deafen from "./deafen";
 import fav from "./fav";
@@ -26,12 +27,15 @@ import plugins from "./plugins";
 import pluginsettings from "./pluginsettings";
 import popout from "./popout";
 import preset from "./preset";
+import presetpick from "./presetpick";
 import react from "./react";
 import repeat from "./repeat";
 import reply from "./reply";
 import retarget from "./retarget";
 import search from "./search";
+import serverpick from "./serverpick";
 import soundboard from "./soundboard";
+import soundpick from "./soundpick";
 import status from "./status";
 import stopstream from "./stopstream";
 import stream from "./stream";
@@ -43,6 +47,7 @@ import upload from "./upload";
 import userpick from "./userpick";
 import vcjoin from "./vcjoin";
 import vcleave from "./vcleave";
+import vcpick from "./vcpick";
 import volume from "./volume";
 import watch from "./watch";
 
@@ -88,4 +93,9 @@ export const actions: Action[] = [
     react,
     upload,
     search,
+    channelpick,
+    serverpick,
+    vcpick,
+    soundpick,
+    presetpick,
 ];

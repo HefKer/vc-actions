@@ -55,7 +55,7 @@ A server added with `favtoggle`, for `fav` to jump to and cycle through; kept by
 _Avoid_: pinned server, folder (Discord's server folders are something else)
 
 **Picker**:
-The fuzzy list `palette`, `favpick` and `userpick` open in the overlay: type to filter, Enter picks, Esc closes. Picks made often and lately rank first (frecency).
+The fuzzy list `palette` and the `*pick` actions (`favpick`, `userpick`, `channelpick`...) open in the overlay: type to filter, Enter picks, Esc closes. Picks made often and lately rank first (frecency).
 _Avoid_: menu, popup, switcher
 
 **Message mode**:
