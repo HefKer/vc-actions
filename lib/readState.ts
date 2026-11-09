@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { ChannelType, ReadStateType } from "@vencord/discord-types/enums";
 import { findStoreLazy } from "@webpack";
 import {
     ActiveJoinedThreadsStore, ChannelRouter, ChannelStore, FluxDispatcher, GuildChannelStore, GuildStore, PrivateChannelSortStore,
@@ -14,6 +13,10 @@ import {
 import { logger } from "./discord";
 import { UserError } from "./errors";
 import { findUnread, type Place } from "./unread";
+
+/** Mirror @vencord/discord-types/enums; that package doesn't resolve from this symlinked plugin (see lib/streams.ts). */
+const ChannelType = { GUILD_CATEGORY: 4 } as const;
+const ReadStateType = { CHANNEL: 0, GUILD_EVENT: 1, GUILD_ONBOARDING_QUESTION: 4 } as const;
 
 const DMS = "@me";
 /** UserGuildSettingsStore.resolveUnreadSetting: unread for every message, not only mentions. */
@@ -86,7 +89,7 @@ function placeName({ guildId, channelId }: Place): string {
     return `#${ch?.name ?? "?"} (${GuildStore.getGuild(guildId)?.name ?? "?"})`;
 }
 
-interface Ack { channelId: string; readStateType: ReadStateType; messageId: string | null; }
+interface Ack { channelId: string; readStateType: number; messageId: string | null; }
 
 function bulkAck(channels: Ack[]) {
     // What Discord's own bulk ack creator dispatches; ReadStateStore keeps only unread ones and posts them in batches.
