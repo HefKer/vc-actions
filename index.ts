@@ -15,7 +15,7 @@ import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { PresetsMissing } from "./lib/presets";
 import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
-import type { Action, ActionArg, ActionContext } from "./registry";
+import type { Action, ActionArg, ActionContext, Release } from "./registry";
 
 const logger = new Logger("VcActions");
 const byId = new Map(actions.map(a => [a.id, a]));
@@ -26,7 +26,7 @@ const settings = definePluginSettings({
     hotkeys: {
         type: OptionType.STRING,
         multiline: true,
-        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`. "
+        description: "In-app hotkeys (Vesktop focused), one per line: `combo = action args`, or `hold combo = action` to undo it on release. "
             + `Actions: ${actions.map(a => a.id).join(", ")}. Example: ctrl+alt+p = popout, ctrl+alt+1 = stream Gaming. # starts a comment.`,
         placeholder: "ctrl+alt+p = popout\nctrl+alt+1 = stream Gaming\nctrl+alt+0 = stopstream",
         default: defaultHotkeys,
@@ -45,9 +45,10 @@ function toastReply(text: string, kind: "info" | "success" | "error" = "info") {
     showToast({ text, variant: toastVariant[kind], duration: kind === "error" ? 5000 : 2500 });
 }
 
-async function runAction(action: Action, ctx: ActionContext) {
+/** Runs an action, reporting failures through ctx.reply; resolves to its release callback if it returned one. */
+async function runAction(action: Action, ctx: ActionContext): Promise<Release | void> {
     try {
-        await action.run(ctx);
+        return await action.run(ctx);
     } catch (e) {
         // Known failures (missing VcPresets, no stream) get their message; anything else gets logged too.
         if (!(e instanceof PresetsMissing || e instanceof StreamError)) logger.error(`action ${action.id} failed`, e);
@@ -83,9 +84,10 @@ const commands = actions.filter(a => a.command).map(a => ({
     description: a.description,
     inputType: ApplicationCommandInputType.BUILT_IN,
     options: (a.args ?? []).map(toOption),
-    execute: (opts: { name: string; value: string; }[], { channel }: { channel: { id: string; }; }) => {
+    execute: async (opts: { name: string; value: string; }[], { channel }: { channel: { id: string; }; }) => {
         const args = Object.fromEntries((a.args ?? []).map(arg => [arg.name, opts.find(o => o.name === arg.name)?.value]));
-        return runAction(a, {
+        // A slash command has no key to let go of, so a release is dropped.
+        await runAction(a, {
             args,
             source: "command",
             reply: text => sendBotMessage(channel.id, { content: text })
@@ -93,7 +95,7 @@ const commands = actions.filter(a => a.command).map(a => ({
     }
 }));
 
-const actionMeta = actions.map(a => ({ id: a.id, args: (a.args ?? []).map(arg => arg.name) }));
+const actionMeta = actions.map(a => ({ id: a.id, args: (a.args ?? []).map(arg => arg.name), holdable: a.holdable }));
 let engine: BindingEngine | null = null;
 
 function reloadBindings(announce = false) {
@@ -108,6 +110,25 @@ function reloadBindings(announce = false) {
 async function runSteps(steps: Step[]) {
     for (const step of steps) {
         await runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply: toastReply });
+    }
+}
+
+/** Active holds by trigger: the running step, resolving to its release callback. */
+const holds = new Map<string, Promise<Release | void>>();
+
+function hold(trigger: string, step: Step) {
+    holds.set(trigger, runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply: toastReply }));
+}
+
+/** Calls a hold's release once its step has finished (a quick tap may let go before the step resolves). */
+async function release(trigger: string) {
+    const pending = holds.get(trigger);
+    holds.delete(trigger);
+    try {
+        await (await pending)?.();
+    } catch (e) {
+        logger.error(`releasing ${trigger} failed`, e);
+        toastReply(`Release of ${trigger} failed: ${e instanceof Error ? e.message : String(e)}`, "error");
     }
 }
 
@@ -132,6 +153,12 @@ function apply(effects: Effect[], e: Event) {
             case "run":
                 runSteps(effect.steps);
                 break;
+            case "hold":
+                hold(effect.trigger, effect.step);
+                break;
+            case "release":
+                release(effect.trigger);
+                break;
             case "swallow":
                 e.preventDefault();
                 e.stopPropagation();
@@ -140,8 +167,12 @@ function apply(effects: Effect[], e: Event) {
     }
 }
 
-function onKeyDown(e: KeyboardEvent) {
+function onKey(e: KeyboardEvent) {
     if (engine) apply(engine.feed(toKeyInput(e)), e);
+}
+
+function onBlur(e: FocusEvent) {
+    if (engine) apply(engine.feed({ type: "blur" }), e);
 }
 
 export default definePlugin({
@@ -167,11 +198,16 @@ export default definePlugin({
     start() {
         reloadBindings();
         // Capture phase, so Discord's own handlers don't swallow the combo first.
-        document.addEventListener("keydown", onKeyDown, true);
+        document.addEventListener("keydown", onKey, true);
+        document.addEventListener("keyup", onKey, true);
+        window.addEventListener("blur", onBlur);
     },
 
     stop() {
-        document.removeEventListener("keydown", onKeyDown, true);
+        document.removeEventListener("keydown", onKey, true);
+        document.removeEventListener("keyup", onKey, true);
+        window.removeEventListener("blur", onBlur);
+        for (const trigger of [...holds.keys()]) release(trigger);
         engine = null;
     }
 });
