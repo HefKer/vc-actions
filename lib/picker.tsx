@@ -7,6 +7,9 @@
 import { useEffect, useMemo, useRef, useState } from "@webpack/common";
 import type { KeyboardEvent } from "react";
 
+import type { ActionContext } from "../registry";
+import { logger } from "./discord";
+import { UserError } from "./errors";
 import { overlay } from "./overlay";
 import { type PaletteEntry, type PaletteMatch, rankEntries } from "./palette";
 import { frecencyOf, recordPick, type UsageList } from "./usage";
@@ -140,20 +143,22 @@ export interface PickerOptions {
     /** Tab completes the selected entry into the box, for free text after it. */
     complete?: boolean;
     /** Called after the picker closes, with the chosen match. */
-    pick(match: PaletteMatch): void;
+    pick(match: PaletteMatch): void | Promise<void>;
     /** A second way to pick, with Shift+Enter (`vcpick` opens the channel instead of joining); without it Shift+Enter is Enter. */
     alt?: {
         /** For the footer, like `enter`. */
         enter: string;
-        pick(match: PaletteMatch): void;
+        pick(match: PaletteMatch): void | Promise<void>;
     };
+    /** Where a throw from `pick` goes, as an action's would (a UserError's message; anything else logged too). Without it, only logged. */
+    reply?: ActionContext["reply"];
 }
 
 /** Open a picker in `win`'s overlay panel. Closing it (Esc, a pick, leaving the box) puts focus back where it was. */
 /** Where each window's picker puts focus back, kept for a picker opened from another (`favpick` run from the palette). */
 const returnFocus = new WeakMap<Document, HTMLElement | null>();
 
-export async function openPicker({ win, entries, usage, placeholder, enter, complete = false, pick, alt }: PickerOptions) {
+export async function openPicker({ win, entries, usage, placeholder, enter, complete = false, pick, alt, reply }: PickerOptions) {
     const doc = win.document;
     const active = doc.activeElement as HTMLElement | null;
     // Focus still in a picker that's closing (its box, in lib/overlay.tsx's host): go back where that one would.
@@ -172,9 +177,14 @@ export async function openPicker({ win, entries, usage, placeholder, enter, comp
             footer={`Enter ${enter}${alt ? ` · Shift+Enter ${alt.enter}` : ""}${complete ? " · Tab completes" : ""} · Esc closes`}
             complete={complete}
             close={() => close()}
-            pick={(m, shift) => {
+            pick={async (m, shift) => {
                 recordPick(usage, m.entry.text);
-                (shift && alt ? alt.pick : pick)(m);
+                try {
+                    await (shift && alt ? alt.pick : pick)(m);
+                } catch (e) {
+                    if (!(e instanceof UserError)) logger.error(`${usage} pick failed`, e);
+                    reply?.(e instanceof Error ? e.message : String(e), "error");
+                }
             }}
             gone={gone}
         />,
