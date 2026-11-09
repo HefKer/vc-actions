@@ -248,7 +248,7 @@ function onBlur(e: FocusEvent, win: Window) {
 export default definePlugin({
     name: "QuickActions",
     description: "Slash commands, in-app hotkeys and a palette for Discord actions: voice and streaming (stream presets via VcPresets, pop-outs), favorite servers, Vencord settings and more",
-    authors: [{ name: "hefker", id: 0n }],
+    authors: [{ name: "hefker", id: 334442905567756288n }],
     dependencies: ["CommandsAPI"],
     settings,
     commands,
