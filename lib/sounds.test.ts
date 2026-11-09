@@ -10,7 +10,7 @@ import { test } from "node:test";
 // @ts-expect-error TS5097: node --test needs the .ts extension, Vencord's tsconfig doesn't allow it.
 import { resolveName } from "./resolve.ts";
 // @ts-expect-error TS5097
-import { type Sound, soundCandidates, soundChoices } from "./sounds.ts";
+import { type Sound, soundCandidates, soundChoices, soundEntries } from "./sounds.ts";
 
 const sound = (name: string, guildId: string, soundId = `${guildId}-${name}`): Sound => ({ name, guildId, soundId });
 const guilds: Record<string, string> = { here: "Home", far: "Elsewhere" };
@@ -54,4 +54,14 @@ test("choices list your server's sounds, then defaults, then others by name and 
 test("choices stop at Discord's limit of 25", () => {
     const many = Array.from({ length: 30 }, (_, i) => sound(`s${i}`, "0"));
     assert.equal(soundChoices(soundCandidates(many, null, guildName)).length, 25);
+});
+
+test("sound entries: candidate order, emoji icon, where it's from, locked ones marked", () => {
+    const withEmoji = [{ ...sound("airhorn", "far"), emojiName: "📯" }, sound("quack", "0"), sound("bonk", "here")];
+    const entries = soundEntries(soundCandidates(withEmoji, "here", guildName), guildName, (s: Sound) => s.guildId === "far");
+    assert.deepEqual(entries, [
+        { label: "bonk", text: "here-bonk", detail: "Home", icon: undefined, badge: undefined, open: false },
+        { label: "quack", text: "0-quack", detail: "default", icon: undefined, badge: undefined, open: false },
+        { label: "airhorn", text: "far-airhorn", detail: "Elsewhere", icon: "📯", badge: { text: "🔒" }, open: false }
+    ]);
 });
