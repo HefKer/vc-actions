@@ -4,13 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Logger } from "@utils/Logger";
 import { findByPropsLazy } from "@webpack";
-import { FluxDispatcher, MediaEngineStore } from "@webpack/common";
+import { MediaEngineStore } from "@webpack/common";
 
 import type { Release } from "../registry";
-
-const logger = new Logger("VcActions");
+import { callOrDispatch } from "./discord";
 
 /**
  * Discord's media engine action creators (the module behind its mute/deafen buttons).
@@ -38,21 +36,14 @@ export function selfAudio(): SelfAudio {
 /** Sets the given flags, touching only those that differ. */
 export function setSelfAudio(want: Partial<SelfAudio>) {
     const cur = selfAudio();
-    if (want.mute != null && want.mute !== cur.mute) {
-        try {
-            AudioActions.setSelfMute(CONTEXT, want.mute);
-        } catch (e) {
-            logger.warn("setSelfMute not found, dispatching AUDIO_SET_SELF_MUTE directly", e);
-            FluxDispatcher.dispatch({ type: "AUDIO_SET_SELF_MUTE", context: CONTEXT, mute: want.mute, playSoundEffect: true });
-        }
+    const { mute, deaf } = want;
+    if (mute != null && mute !== cur.mute) {
+        callOrDispatch("setSelfMute", () => AudioActions.setSelfMute(CONTEXT, mute),
+            { type: "AUDIO_SET_SELF_MUTE", context: CONTEXT, mute, playSoundEffect: true });
     }
-    if (want.deaf != null && want.deaf !== cur.deaf) {
-        try {
-            AudioActions.toggleSelfDeaf({ context: CONTEXT });
-        } catch (e) {
-            logger.warn("toggleSelfDeaf not found, dispatching AUDIO_TOGGLE_SELF_DEAF directly", e);
-            FluxDispatcher.dispatch({ type: "AUDIO_TOGGLE_SELF_DEAF", context: CONTEXT, syncRemote: true });
-        }
+    if (deaf != null && deaf !== cur.deaf) {
+        callOrDispatch("toggleSelfDeaf", () => AudioActions.toggleSelfDeaf({ context: CONTEXT }),
+            { type: "AUDIO_TOGGLE_SELF_DEAF", context: CONTEXT, syncRemote: true });
     }
 }
 

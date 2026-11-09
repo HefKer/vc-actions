@@ -6,15 +6,15 @@
 
 import { ApplicationCommandInputType, ApplicationCommandOptionType, sendBotMessage } from "@api/Commands";
 import { definePluginSettings } from "@api/Settings";
-import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { CommandOption } from "@vencord/discord-types";
-import { React, RelationshipStore, UserStore } from "@webpack/common";
+import { React, RelationshipStore } from "@webpack/common";
 
 import { actions } from "./actions";
 import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { WhichKeyHint } from "./lib/hint";
 import { disposeOverlays, overlay, OverlayKind } from "./lib/overlay";
+import { logger, myId } from "./lib/discord";
 import { UserError } from "./lib/errors";
 import { decodeStreamKey, isPoppedOut, popOut } from "./lib/streams";
 import { resolveUserArgs } from "./lib/users";
@@ -22,7 +22,6 @@ import { startVoiceTracking, stopVoiceTracking } from "./lib/voice";
 import { attachToWindows } from "./lib/windows";
 import type { Action, ActionArg, ActionContext, Release } from "./registry";
 
-const logger = new Logger("VcActions");
 const byId = new Map(actions.map(a => [a.id, a]));
 
 const defaultHotkeys = actions.filter(a => a.defaultHotkey).map(a => `${a.defaultHotkey} = ${a.id}`).join("\n");
@@ -251,7 +250,7 @@ export default definePlugin({
         STREAM_WATCH({ streamKey }: { streamKey: string; }) {
             if (!settings.store.autoPopout) return;
             const s = decodeStreamKey(streamKey);
-            if (!s || s.ownerId === UserStore.getCurrentUser()?.id || !RelationshipStore.isFriend(s.ownerId)) return;
+            if (!s || s.ownerId === myId() || !RelationshipStore.isFriend(s.ownerId)) return;
             // Let the watch land and the tile appear before popping it out.
             setTimeout(() => {
                 if (!isPoppedOut(s)) popOut(s);

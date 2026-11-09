@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { UserStore } from "@webpack/common";
-
 import { popOut, popOutCall, userStream } from "../lib/streams";
+import { displayName } from "../lib/users";
 import { defineAction } from "../registry";
 
 export default defineAction({
@@ -19,8 +18,7 @@ export default defineAction({
             popOutCall();
             return reply("Call popped out.", "success");
         }
-        const user = UserStore.getUser(args.user);
-        popOut(await userStream(args.user, user?.globalName ?? user?.username ?? args.user));
+        popOut(await userStream(args.user, displayName(args.user)));
         reply("Popped out.", "success");
     }
 });

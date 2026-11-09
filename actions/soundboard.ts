@@ -4,16 +4,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Logger } from "@utils/Logger";
 import type { Channel, SoundboardSound, User } from "@vencord/discord-types";
 import { findByCodeLazy } from "@webpack";
 import { ChannelStore, GuildStore, SelectedChannelStore, SoundboardStore, UserStore } from "@webpack/common";
 
+import { logger } from "../lib/discord";
 import { ResolveError, resolveName } from "../lib/resolve";
 import { soundCandidates, soundChoices } from "../lib/sounds";
 import { defineAction } from "../registry";
-
-const logger = new Logger("VcActions");
 
 /*
  * Discord's own soundboard functions (found live, see README "Limits"):

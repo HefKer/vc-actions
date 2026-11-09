@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { displayName, isLocalMute, isSelf, localAmplitude, localVolume, maxVolume, setLocalAmplitude, setLocalMute, setLocalVolume } from "../lib/userAudio";
+import { myId } from "../lib/discord";
+import { isLocalMute, localAmplitude, localVolume, maxVolume, setLocalAmplitude, setLocalMute, setLocalVolume } from "../lib/userAudio";
+import { displayName } from "../lib/users";
 import { applyVolumeChange, parseVolumeChange } from "../lib/volume";
 import { defineAction } from "../registry";
 
@@ -19,7 +21,7 @@ export default defineAction({
     ],
     run({ args, reply }) {
         const userId = args.user!;
-        if (isSelf(userId)) return reply("You can't set your own volume.", "error");
+        if (userId === myId()) return reply("You can't set your own volume.", "error");
         const parsed = parseVolumeChange(args.level);
         if (!parsed.ok) return reply(parsed.error, "error");
 

@@ -5,14 +5,12 @@
  */
 
 import * as DataStore from "@api/DataStore";
-import { Logger } from "@utils/Logger";
 import { findByPropsLazy } from "@webpack";
 import { ChannelStore, GuildChannelStore, GuildStore, NavigationRouter, SelectedChannelStore, SelectedGuildStore } from "@webpack/common";
 
+import { logger } from "./discord";
 import { ResolveError } from "./resolve";
 import { channelChoices, resolveVoiceChannel, trackVoice, type VoiceChannelInfo, type VoiceTrack } from "./voiceChannels";
-
-const logger = new Logger("VcActions");
 
 /** Discord's channel actions (confirmed live): selectVoiceChannel(id) joins, disconnect() leaves. */
 const ChannelActions: {
