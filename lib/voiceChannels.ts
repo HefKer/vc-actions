@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-/** Pure voice-channel logic: the last-channel tracker and name matching. Discord glue is in voice.ts. */
-
 // @ts-expect-error TS5097: node --test needs the .ts extension, Vencord's tsconfig doesn't allow it.
-import { type Candidate, resolveName, type Resolved } from "./resolve.ts";
+import { type Candidate, type Resolved, resolveName } from "./resolve.ts";
+
+// Pure voice-channel logic: the last-channel tracker and name matching. Discord glue is in voice.ts.
 
 /** Your voice channel now, and the one you were in before it (what `vcjoin last` rejoins). */
 export interface VoiceTrack {
