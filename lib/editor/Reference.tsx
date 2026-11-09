@@ -26,6 +26,11 @@ function Syntax({ holdable }: { holdable: string[]; }) {
                 aliases <C>esc</C>, <C>space</C>, <C>plus</C> (or <C>ctrl++</C>), <C>del</C>, <C>return</C>. Letters and digits match by physical key.
             </p>
             <p>
+                <b>Group:</b> <C>ctrl+space c = +config</C> names the sequences starting with <C>ctrl+space c</C>: the hint and
+                <C>help</C> show <C>+config</C> instead of "+ more keys". A leading emoji is its icon (<C>+📺 stream</C>). Not a
+                binding; something must continue the prefix, and each prefix gets one label.
+            </p>
+            <p>
                 <b>Step:</b> an action id, then its args in order; the last arg takes the rest of the step, spaces included
                 (<C>stream My Preset</C>). Users and other names match exactly, then case-insensitively, then by unique prefix.
             </p>
