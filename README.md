@@ -10,11 +10,15 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `stream` | `/stream <preset>` | Start streaming with a VcPresets preset (choices list the saved presets) |
 | `stopstream` | `/stopstream` | Stop your stream |
 | `retarget` | `/retarget <preset>` | Mid-stream, move the niri Dynamic Cast Target to that preset's target (VcPresets errors if you're not streaming or the preset has no video) |
+| `streamtoggle` | | `streamtoggle <preset>`: start streaming with that preset if you're not live; if you are, stop, whatever preset the stream uses |
+| `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
 
-`stream`, `stopstream` and `retarget` call the sibling plugin VcPresets (`../vc-presets`) at run time through
+`stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
 Preset names match exactly, then case-insensitively, then by unique prefix.
+VcPresets doesn't say which preset is live, so `preset next` counts from the preset VcActions last started or
+retargeted to (the first preset if none yet); a stream started from VcPresets' own UI isn't seen.
 
 Setting **Auto pop-out**: when you start watching a friend's stream, it's popped out.
 
@@ -27,6 +31,8 @@ ctrl+alt+p = popout
 ctrl+alt+1 = stream Gaming
 ctrl+alt+0 = stopstream
 ctrl+alt+2 = retarget Browser
+ctrl+alt+s = streamtoggle Gaming
+ctrl+alt+n = preset next
 ```
 
 Words after the action id fill its args in order; the last arg takes the rest of the line, so preset names can
@@ -82,6 +88,8 @@ esbuild follows the `src/userplugins/vcActions` symlink to this repo and reads `
 extends `../vencord/tsconfig.json` to get the `@api`/`@webpack` aliases, so the Vencord tree must sit next to
 this repo as `../vencord`. A symlink to the host inside this repo would make stylelint's `src/**` glob loop.
 Building in a copy of Vencord (as the Nix package does) needs no tsconfig here: delete it.
+
+Unit tests (pure modules in `lib/`, Node 24, no deps): `node --test 'lib/*.test.ts'`.
 
 ## Limits
 
