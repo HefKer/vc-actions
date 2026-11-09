@@ -13,6 +13,9 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `streamtoggle` | | `streamtoggle <preset>`: start streaming with that preset if you're not live; if you are, stop, whatever preset the stream uses |
 | `preset` | | `preset next`: mid-stream, retarget to the preset after the current one in VcPresets' list order, wrapping around. Errors if you're not streaming |
 | `popout` | `/popout [user]` | No user: pop out the call view, like its own Pop Out button (every tile in one window). With a user: pop out just their stream tile, watching it first if needed |
+| `vcjoin` | `/vcjoin <channel>` | Join a voice channel by name (see [Names](#names)) or id. `vcjoin last` rejoins the voice channel you were in before the current one (or the one you left), even after a restart; a channel literally named "last" needs its id |
+| `vcleave` | | Leave voice; just says so if you're not in voice |
+| `gotocall` | | Open the call view of your voice channel |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
@@ -53,11 +56,14 @@ Discord's. Discord has no readable list of its shortcuts, so they're hard-coded 
 
 ## Names
 
-Presets and users (and later voice channels and sounds) are matched by name the same way: exactly, then
+Presets, users and voice channels (and later sounds) are matched by name the same way: exactly, then
 case-insensitively, then by unique prefix; a prefix shared by several, or no match, is an error that lists the
 candidates. A user in a binding is an id (or `<@id>`) or a name: nickname, friend nickname, display name or
 username, matched against the people in your voice channel first, then your friends, so an exact friend name
-still beats an in-call prefix (`ctrl+alt+a = popout alice`).
+still beats an in-call prefix (`ctrl+alt+a = popout alice`). A voice channel is matched in the server you're viewing
+(or, from DMs, the one you're in voice in) first; channels elsewhere are listed as `General (Server)` and answer to
+that name too, so `vcjoin general (friends)` picks another server's General. The previous voice channel is tracked by
+VcActions (Discord doesn't keep it) and saved in Vencord's DataStore.
 
 ## Adding an action
 
