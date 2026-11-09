@@ -30,6 +30,7 @@ import react from "./react";
 import repeat from "./repeat";
 import reply from "./reply";
 import retarget from "./retarget";
+import search from "./search";
 import soundboard from "./soundboard";
 import status from "./status";
 import stopstream from "./stopstream";
@@ -86,4 +87,5 @@ export const actions: Action[] = [
     reply,
     react,
     upload,
+    search,
 ];

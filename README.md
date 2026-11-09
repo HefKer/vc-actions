@@ -48,6 +48,7 @@ Each action is one file in `actions/`; the same action runs from a slash command
 | `reply` | | `reply last`: reply to the newest message in the channel you're viewing, like Discord's Reply (it pings the author, unless that's you); the composer gets focus |
 | `react` | | `react <emoji>` reacts to the newest message in the channel you're viewing: `👍`, `thumbsup` or `:thumbsup:`, `<:name:id>`, or a custom emoji's name (see [Names](#names)). Says so if you already reacted with it |
 | `upload` | | Open the file chooser to upload files to the channel shown in the window you pressed it in (pop-outs too), like the composer's **+ → Upload a File**. Picked files land in the composer as attachments, unsent. `upload clipboard` instead attaches the copied image(s), as pasting does; says so if the clipboard holds no image (copied files from a file manager don't count: Chromium only exposes images) |
+| `search` | `/search <query>` | `search <text>` searches the messages of the server or DM you're in, like typing it in Discord's search bar and pressing Enter; Discord's filters work (`search from:alice has:image cat`). With no text, focuses the search bar |
 
 `stream`, `stopstream`, `retarget`, `streamtoggle` and `preset` call the sibling plugin VcPresets (`../vc-presets`) at run time through
 `Vencord.Plugins.plugins.VcPresets`; if it's missing or disabled the action says so instead.
