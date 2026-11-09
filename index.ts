@@ -12,7 +12,7 @@ import { CommandOption } from "@vencord/discord-types";
 import { RelationshipStore, showToast, UserStore } from "@webpack/common";
 
 import { actions } from "./actions";
-import { Binding, matches, parseBindings, splitArgs } from "./lib/hotkeys";
+import { type BindingEngine, createBindingEngine, type Effect, type KeyInput, type Step } from "./lib/bindings";
 import { PresetsMissing } from "./lib/presets";
 import { decodeStreamKey, isPoppedOut, popOut, StreamError } from "./lib/streams";
 import type { Action, ActionArg, ActionContext } from "./registry";
@@ -93,31 +93,55 @@ const commands = actions.filter(a => a.command).map(a => ({
     }
 }));
 
-let bindings: Binding[] = [];
+const actionMeta = actions.map(a => ({ id: a.id, args: (a.args ?? []).map(arg => arg.name) }));
+let engine: BindingEngine | null = null;
 
 function reloadBindings(announce = false) {
-    const { bindings: b, errors } = parseBindings(settings.store.hotkeys ?? "", new Set(byId.keys()));
-    bindings = b;
+    engine = createBindingEngine(settings.store.hotkeys ?? "", actionMeta);
+    const errors = engine.problems.map(p => `line ${p.line}: ${p.message}`);
     if (errors.length) {
         logger.warn("hotkeys setting:", errors);
         if (announce) toastReply(`VcActions hotkeys: ${errors[0]}`, "error");
     }
 }
 
-function onKeyDown(e: KeyboardEvent) {
-    if (e.repeat || !bindings.length) return;
-    const hit = bindings.find(b => matches(b.combo, e));
-    if (!hit) return;
-    // A bare key (no ctrl/alt/meta) shouldn't fire while typing.
-    const bare = !hit.combo.ctrl && !hit.combo.alt && !hit.combo.meta;
-    const t = e.target as HTMLElement | null;
-    if (bare && t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+async function runSteps(steps: Step[]) {
+    for (const step of steps) {
+        await runAction(byId.get(step.actionId)!, { args: step.args, source: "hotkey", reply: toastReply });
+    }
+}
 
-    e.preventDefault();
-    e.stopPropagation();
-    const action = byId.get(hit.actionId)!;
-    const names = (action.args ?? []).map(a => a.name);
-    runAction(action, { args: splitArgs(hit.rest, names), source: "hotkey", reply: toastReply });
+function toKeyInput(e: KeyboardEvent): KeyInput {
+    const t = e.target as HTMLElement | null;
+    return {
+        type: e.type === "keyup" ? "keyup" : "keydown",
+        key: e.key,
+        code: e.code,
+        ctrl: e.ctrlKey,
+        alt: e.altKey,
+        shift: e.shiftKey,
+        meta: e.metaKey,
+        repeat: e.repeat,
+        inTextField: !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+    };
+}
+
+function apply(effects: Effect[], e: Event) {
+    for (const effect of effects) {
+        switch (effect.type) {
+            case "run":
+                runSteps(effect.steps);
+                break;
+            case "swallow":
+                e.preventDefault();
+                e.stopPropagation();
+                break;
+        }
+    }
+}
+
+function onKeyDown(e: KeyboardEvent) {
+    if (engine) apply(engine.feed(toKeyInput(e)), e);
 }
 
 export default definePlugin({
@@ -148,6 +172,6 @@ export default definePlugin({
 
     stop() {
         document.removeEventListener("keydown", onKeyDown, true);
-        bindings = [];
+        engine = null;
     }
 });
