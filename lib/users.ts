@@ -33,6 +33,12 @@ export function userCandidates(): Candidate<string>[] {
     ].filter(c => c.names.length);
 }
 
+/** The other people in your voice channel as palette choices: their first name shown, their id written. */
+export function participantChoices(): { label: string; value: string; }[] {
+    const me = UserStore.getCurrentUser()?.id;
+    return userCandidates().filter(c => c.tier === 0 && c.value !== me).map(c => ({ label: c.names[0], value: c.value }));
+}
+
 /** A user arg (id, mention or name) as a user id, or throws ResolveError listing the candidates. */
 export function userId(input: string | undefined): string {
     const r = resolveUser(input, userCandidates());

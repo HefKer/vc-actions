@@ -6,6 +6,7 @@
 
 import type { Action } from "../registry";
 import help from "./help";
+import palette from "./palette";
 import popout from "./popout";
 import presetNext from "./presetNext";
 import retarget from "./retarget";
@@ -22,4 +23,5 @@ export const actions: Action[] = [
     presetNext,
     popout,
     help,
+    palette,
 ];
