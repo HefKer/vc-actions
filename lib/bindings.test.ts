@@ -122,3 +122,31 @@ test("bad lines are reported as errors with their line and skipped; good lines s
     assert.deepEqual(engine.feed(down("ctrl+alt+p")), []);
     assert.equal(engine.feed(down("ctrl+alt+0"))[0].type, "run");
 });
+
+test("a macro splits on ; into steps in order, each with its own args", () => {
+    const engine = createBindingEngine("ctrl+alt+g = stream Gaming Night ;popout;  stopstream ", actions);
+    assert.deepEqual(engine.problems, []);
+    assert.deepEqual(engine.feed(down("ctrl+alt+g")), [
+        {
+            type: "run", trigger: "ctrl+alt+g", steps: [
+                { actionId: "stream", args: { preset: "Gaming Night" }, text: "stream Gaming Night" },
+                { actionId: "popout", args: { user: undefined }, text: "popout" },
+                { actionId: "stopstream", args: {}, text: "stopstream" }
+            ]
+        },
+        { type: "swallow" }
+    ]);
+});
+
+test("a macro with an unknown action or an empty step is an error naming the step, and isn't bound", () => {
+    const engine = createBindingEngine([
+        "ctrl+alt+g = stream Gaming; nosuch x",
+        "ctrl+alt+h = popout;; stopstream",
+        "ctrl+alt+j = popout;"
+    ].join("\n"), actions);
+    assert.deepEqual(engine.problems.map(p => [p.severity, p.line]), [["error", 1], ["error", 2], ["error", 3]]);
+    assert.match(engine.problems[0].message, /step 2.*nosuch/);
+    assert.match(engine.problems[1].message, /step 2/);
+    assert.match(engine.problems[2].message, /step 2/);
+    for (const k of ["ctrl+alt+g", "ctrl+alt+h", "ctrl+alt+j"]) assert.deepEqual(engine.feed(down(k)), []);
+});
