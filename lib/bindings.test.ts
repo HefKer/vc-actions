@@ -177,3 +177,12 @@ test("bindings lists the loaded bindings as written, bad lines left out", () => 
         { trigger: "ctrl+alt+1", steps: ["stream Gaming"] }
     ]);
 });
+
+test("parseSteps reads step text as a binding's right side would be, for the palette", () => {
+    const engine = createBindingEngine("", actions);
+    assert.deepEqual(engine.parseSteps("volume alice +20; popout"), [
+        { actionId: "volume", args: { user: "alice", level: "+20" }, text: "volume alice +20" },
+        { actionId: "popout", args: { user: undefined }, text: "popout" }
+    ]);
+    assert.equal(engine.parseSteps("nosuch"), "no action \"nosuch\"");
+});
