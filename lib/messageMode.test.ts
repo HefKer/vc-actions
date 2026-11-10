@@ -162,6 +162,11 @@ test("c and l copy the selection oldest first, else the cursor's message", () =>
     assert.deepEqual(keys(startMode(ids), [" ", "k", "k", " ", "l"]).command, { type: "link", ids: ["m3", "m5"] });
 });
 
+test("d with a selection deletes the selection oldest first, else the cursor's message", () => {
+    assert.deepEqual(keys(startMode(ids), [" ", "k", "k", " ", "d"]).command, { type: "deleteMany", ids: ["m3", "m5"] });
+    assert.deepEqual(keys(startMode(ids), ["d"]).command, { type: "delete", id: "m5" });
+});
+
 test("z asks to centre the cursor", () => {
     assert.deepEqual(keys(startMode(ids), ["z"]).command, { type: "center" });
 });

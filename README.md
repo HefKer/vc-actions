@@ -283,7 +283,7 @@ or `meta` are the mode's and never reach the composer; bindings keep working.
 | `t` | Open the message's thread, or start one on it with Discord's new-thread form |
 | `c` / `l` | Copy the text / the link of the selected messages (oldest first, one per line or paragraph), or of this one |
 | `p` | Pin the message, or unpin it if it's pinned, through Discord's confirm dialog |
-| `d` | Delete the message (yours, or anyone's with Manage Messages) through Discord's confirm dialog |
+| `d` | Delete the message (yours, or anyone's with Manage Messages) through Discord's confirm dialog. With a selection: one confirm for all of them, then deleted one by one, ~1 s apart (users can't bulk-delete); if any of them isn't yours to delete, nothing is |
 | `space` | Select or unselect the message (green bar), up to 10 |
 | `f` | Forward the selected messages, or the highlighted one if none is selected |
 | `Esc` | Drop a typed count; else clear the search tint; else clear the selection; else leave |

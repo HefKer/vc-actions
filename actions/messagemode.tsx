@@ -13,7 +13,7 @@ import {
     acceptsRepeat, MAX_SELECTED, type ModeCommand, type ModeState, moveTo, pressKey, rebase, searchMatches, setGoal, showLabels, startMode
 } from "../lib/messageMode";
 import {
-    channelInWindow, copyLinks, copyText, deleteMessage, editMessage, forwardMessages, getMessage, isModalOpen, jumpToMessage,
+    channelInWindow, copyLinks, copyText, deleteMessage, deleteMessages, editMessage, forwardMessages, getMessage, isModalOpen, jumpToMessage,
     messageElement, messagesShown, messageText, openReactionPicker, openThread, repliedTo, replyTo, scrollerOf, togglePin
 } from "../lib/messages";
 import { HINT_GAP, type HintSide, hintSide, marginsFor, onScreen, scrollFor, type Span } from "../lib/messageView";
@@ -34,7 +34,7 @@ const KEYS: [string, string][] = [
     ["t", "thread"],
     ["c/l", "copy text/link"],
     ["p", "pin"],
-    ["d", "delete"],
+    ["d", "delete (the selection)"],
     ["space", `select (${MAX_SELECTED})`],
     ["f", "forward"],
     ["Esc", "back, exit"]
@@ -340,6 +340,9 @@ function enter(win: Window, reply: ActionContext["reply"]) {
                     return null;
                 case "delete":
                     deleteMessage(message(command.id));
+                    return null;
+                case "deleteMany":
+                    deleteMessages(messages(command.ids), say);
                     return null;
                 case "parent": {
                     const msg = message(command.id);

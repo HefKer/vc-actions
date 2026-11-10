@@ -8,7 +8,7 @@ import { copyToClipboard } from "@utils/clipboard";
 import type { Channel, Message } from "@vencord/discord-types";
 import { findByCodeLazy, findByPropsLazy, findLazy } from "@webpack";
 import {
-    ChannelActionCreators, ChannelStore, closeModal, ComponentDispatch, EmojiStore, FluxDispatcher, GuildStore, MessageActions,
+    Alerts, ChannelActionCreators, ChannelStore, closeModal, ComponentDispatch, EmojiStore, FluxDispatcher, GuildStore, MessageActions,
     MessageStore, MessageTypeSets, PermissionsBits, PermissionStore, ReadStateStore, SelectedChannelStore, SelectedGuildStore
 } from "@webpack/common";
 
@@ -372,15 +372,49 @@ export function togglePin(message: Message) {
     else Confirms.confirmPin(channel, message);
 }
 
-/** Delete `message` through Discord's confirm dialog: your own, or anyone's with Manage Messages, as its menu allows. */
-export function deleteMessage(message: Message) {
-    const channel = channelOf(message);
+/** You may delete `message`: your own, or anyone's with Manage Messages, as Discord's menu allows. */
+function canDelete(message: Message, channel: Channel) {
     const manage = can(PermissionsBits.MANAGE_MESSAGES, channel);
     const mine = message.canDeleteOwnMessage(myId() ?? "");
-    const allowed = message.state !== "SENDING" && (manage || mine) && !MessageTypeSets.UNDELETABLE.has(message.type)
+    return message.state !== "SENDING" && (manage || mine) && !MessageTypeSets.UNDELETABLE.has(message.type)
         && (message.type !== AUTO_MODERATION_ACTION || manage);
-    if (!allowed) throw new UserError("You can't delete that message.");
+}
+
+/** Delete `message` through Discord's confirm dialog. */
+export function deleteMessage(message: Message) {
+    const channel = channelOf(message);
+    if (!canDelete(message, channel)) throw new UserError("You can't delete that message.");
     Confirms.confirmDelete(channel, message);
+}
+
+/**
+ * Delete several messages (one channel, oldest first) after one confirm. Users can't bulk-delete, so it's one
+ * request per message, spaced like forwards. All or nothing up front: any message you can't delete refuses the lot.
+ */
+export function deleteMessages(messages: Message[], say: (text: string, kind?: "info" | "success" | "error") => void) {
+    const channel = channelOf(messages[0]);
+    const refused = messages.filter(m => !canDelete(m, channel)).length;
+    if (refused) throw new UserError(`You can't delete ${refused} of those ${messages.length} messages; nothing deleted.`);
+    const n = messages.length;
+    Alerts.show({
+        title: `Delete ${n} messages?`,
+        body: "They're deleted one by one and can't be brought back.",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        onConfirm: async () => {
+            let done = 0;
+            for (const [i, m] of messages.entries()) {
+                if (i) await sleep(FORWARD_SPACING_MS);
+                try {
+                    await MessageActions.deleteMessage(channel.id, m.id);
+                    done++;
+                } catch (e) {
+                    logger.error("delete failed", e);
+                }
+            }
+            say(done === n ? `Deleted ${n} messages.` : `Deleted ${done} of ${n} messages.`, done === n ? "success" : "error");
+        }
+    });
 }
 
 /** Start Discord's inline edit of `message` (yours), like its toolbar's Edit; the editor takes focus. */

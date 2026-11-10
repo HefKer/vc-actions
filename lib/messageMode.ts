@@ -62,6 +62,8 @@ export type ModeCommand =
     | { type: "parent"; id: string; }
     /** Ids oldest first: the selection, else the cursor's message. */
     | { type: "forward" | "copy" | "link"; ids: string[]; }
+    /** `d` with a selection: delete the selected messages, ids oldest first (one confirm for all). */
+    | { type: "deleteMany"; ids: string[]; }
     /** Scroll the cursor's message to the middle. */
     | { type: "center"; }
     /** Show labels on the messages on screen: call `showLabels` with their ids. */
@@ -259,8 +261,10 @@ export function pressKey(state: ModeState, key: string, ids: readonly string[], 
             return one("edit");
         case "p":
             return one("pin");
-        case "d":
-            return one("delete");
+        case "d": {
+            const marked = ids.filter(id => state.selected.includes(id));
+            return marked.length ? { state: plain, command: { type: "deleteMany", ids: marked } } : one("delete");
+        }
         case "t":
             return one("thread");
         case "o":
