@@ -394,6 +394,8 @@ the which-key hint, feedback), so feedback never replaces an open palette.
 `pnpm build` there, then Vesktop Settings → Vesktop → Vencord Location → that tree's `dist`, restart Vesktop, and
 enable **QuickActions** (and [VcPresets](https://github.com/HefKer/vc-presets)).
 
+Before a release or after a Discord update, run through [docs/manual-tests.md](docs/manual-tests.md).
+
 ## Building
 
 esbuild follows the `src/userplugins/vcActions` symlink to this repo and reads `tsconfig.json` here, which
